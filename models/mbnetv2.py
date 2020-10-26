@@ -162,12 +162,16 @@ class MobileNetV2(nn.Module):
 
         # building classifier for age and gender
         self.classifier_age = nn.Sequential(
-            nn.Dropout(0.1),
-            nn.Linear(self.last_channel, num_age_classes),
+            nn.Linear(self.last_channel, 512),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(512, num_age_classes)
         )
         self.classifier_gender = nn.Sequential(
-            nn.Dropout(0.1),
-            nn.Linear(self.last_channel, num_gender_classes),
+            nn.Linear(self.last_channel, 512),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(512, num_gender_classes)
         )
 
         # weight initialization
