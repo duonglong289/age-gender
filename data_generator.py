@@ -52,7 +52,7 @@ class DatasetLoader(Dataset):
 
         self.image_num = len(self.image_path_and_type)
         self.indices = np.random.permutation(self.image_num)
-        self.num_age_classes = 17
+        self.num_age_classes = 16
         
 
     def __len__(self):
@@ -119,15 +119,15 @@ class DatasetLoader(Dataset):
         elif 42 <= age < 46:
             age_cls = 10
         elif 46 <= age < 50:
-            age_cls = 12
+            age_cls = 11
         elif 50 <= age < 55:
-            age_cls = 13
+            age_cls = 12
         elif 55 <= age < 60:
-            age_cls = 14
+            age_cls = 13
         elif 60 <= age < 65:
-            age_cls = 15
+            age_cls = 14
         elif 65 <= age:
-            age_cls = 16
+            age_cls = 15
         return age_cls
 
 
