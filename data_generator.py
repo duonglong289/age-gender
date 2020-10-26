@@ -143,17 +143,19 @@ class DatasetLoader(Dataset):
             data_imgs = train_list
         else:
             data_imgs = val_list
-
+        age_count = [0]*17
         for image_path in data_imgs:
             image_name = image_path.name 
             age =image_name.split("A")[1].split(".")[0].split("G")[0]
             gender =image_name.split("A")[1].split(".")[0].split("G")[1]
             age_cls = self.age_to_cls(int(age))
+            age_count[age_cls] += 1
             labes = (age_cls, gender)
             if image_path.is_file():
                 self.image_path_and_type.append([str(image_path), (age_cls, int(gender))])
 
         print("Number images:", len(self.image_path_and_type))
+        print("Class age",age_cls)
 
 if __name__ == "__main__":
     dataset = DatasetLoader("dataset/all_faces", "train")
