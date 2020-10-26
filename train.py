@@ -18,19 +18,17 @@ from tensorboardX import SummaryWriter
 
 
 class ModelAgeGender:
-    def __init__(self, model_name="mobilenet_v2", pretrained=True, device="cuda", log="./log", **kwargs):
-        if model_name == "mobilenet_v2":
-            self.model = mobilenet_v2(pretrained=True)
-        else:
-            raise ValueError("Do not support model {}!".format(model_name))
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model.to(self.device)
+    def __init__(self, device="cuda", log="./log", **kwargs):
         if os.path.isdir(log):
             now = datetime.now()
-            now_str = now.strftime("%d%m%Y_%H%M")
-            self.log = os.path.join(log, now_str)
+            now_str = now.strftime("%d%m%Y_%H%M%S")
+            # self.log = os.path.join(log, now_str)
+            self.log = "{}_{}".format(log, now_str)
             os.makedirs(self.log, exist_ok=True)
-        self._init_param()
+        else:
+            self.log = log
+            os.makedirs(self.log, exist_ok=True)
+
         self.epoch_count = 0
         self.writer = SummaryWriter()
         
@@ -44,13 +42,22 @@ class ModelAgeGender:
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.02, weight_decay=w_decay)
         
 
+    def init_model(self, model_name="mobilenet_v2", pretrained=True, **kwargs):
+        if model_name == "mobilenet_v2":
+            self.model = mobilenet_v2(pretrained=True, **kwargs)
+        else:
+            raise ValueError("Do not support model {}!".format(model_name))
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
+        self._init_param()
+
+
     def load_dataset(self, data_loader, batch_size=1, num_workers=8):
         params = {
             "batch_size": batch_size,
             "shuffle": True,
             "num_workers": num_workers
         }
-        print("wwwwwwwwwwwwwwwwwwwww",num_workers)
         # Load dataset
         train_loader, val_loader = data_loader
         # self.train_generator = DatasetLoader(dataset_dir, "train")
@@ -63,10 +70,13 @@ class ModelAgeGender:
         # Freeze backbone
         if freeze:
             for params in self.model.parameters():
-                if params in self.model.classifier_age.parameters() or params in self.model.classifier_gender.parameters():
-                    params.requires_grad = True 
-                else:
-                    params.requires_grad = False
+                # if params in self.model.classifier_age.parameters() or params in self.model.classifier_gender.parameters():
+                params.requires_grad = False
+            for params in self.model.classifier_age.parameters():
+                params.requires_grad = True
+            for params in self.model.classifier_gender.parameters():
+                params.requires_grad = True
+
         else:
             for params in self.model.parameters():
                 params.requires_grad = True
@@ -108,12 +118,17 @@ class ModelAgeGender:
             self.writer.add_scalar("Age loss", loss_ages, epoch+1)
             self.writer.add_scalar("Gender loss", loss_genders, epoch+1)
             self.writer.add_scalar("Train loss", running_losses, epoch+1)
+            
             # Evaluate
             mae_age, acc_gender = self._validate(epoch+1)
+            
             # Monitor
             if verbose:
                 print("Epoch {}: Loss age: {} - Loss gender: {} - Loss train: {} - MAE age: {} - Acc gender: {}"
                     .format(self.epoch_count, loss_ages, loss_genders, running_losses, mae_age, acc_gender))
+            
+            # Save model
+            self.save_statedict(mae_age, acc_gender)
 
         
     def _validate(self, epoch):
@@ -131,10 +146,6 @@ class ModelAgeGender:
                 output = self.model(inputs)
                 score_age, pred_age, pred_gender = output
 
-                print("predict_age", pred_age.topk(1, dim=1))
-                print("label_age",label_age)
-                
-                abc = pred_age.topk(1, dim=1)[1]
                 # compute mae and mse with age label
                 mae = self.compute_mae_mse(pred_age.topk(1, dim=1)[1], label_age)
                 mae_age += mae
@@ -192,9 +203,12 @@ class ModelAgeGender:
         return cost
 
 
-    def save_model(self, mae=0, acc=0):
+    def save_model(self, mae=0, acc=0, model_name=None):
         self.model.eval()
-        model_path = os.path.join(self.log, "{}_{}_gender_{}_age.pt".format(self.epoch_count, acc, mae))
+        if model_name is None:
+            model_path = os.path.join(self.log, "{}_{}_gender_{}_age.pt".format(self.epoch_count, acc, mae))
+        else: 
+            model_path = model_name
         torch.save(self.model, model_path)
 
 
@@ -203,12 +217,45 @@ class ModelAgeGender:
         model_path = os.path.join(self.log, "{}_{}_gender_{}_age.pt".format(self.epoch_count, acc, mae))
         torch.save(self.model.state_dict(), model_path)        
         
-
-if __name__ == "__main__":
-    dataset_dir = "dataset/small_data"
-    age_gender_model = ModelAgeGender()
+def main(args):
+    # Params
+    batch_size = args.batch_size
+    log_dir = args.logs
+    num_workers = args.num_workers
+    num_epochs = args.num_epochs
+    init_lr = args.init_lr
+    
+    # Init dataset
+    dataset_dir = args.dataset
     train_loader = DatasetLoader(dataset_dir, "train")
     val_loader = DatasetLoader(dataset_dir, "val")
-    age_gender_model.load_dataset((train_loader, val_loader), batch_size=2, num_workers=8)
-    age_gender_model.train(num_epochs=1, learning_rate=0.02)
+    num_age_classes=train_loader.num_age_classes
+
+    # Init model
+    age_gender_model = ModelAgeGender(log=log_dir)
+    age_gender_model.init_model(num_age_classes=17)
+
+    age_gender_model.load_dataset((train_loader, val_loader), batch_size=batch_size, num_workers=num_workers)
+
+    # Train 5 epoch with freezed backbone
+    age_gender_model.train(num_epochs=5, learning_rate=init_lr, freeze=True)
+    # Then unfreeze all layers
+    age_gender_model.train(num_epochs=num_epochs-5, learning_rate=init_lr/2, freeze=True)
+
+    age_gender_model.save_model(model_name="last.pt")
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Training Liveness Detection")
+    parser.add_argument("--dataset", type=str, required=True, help="Path to dataset consist of 'train' and 'val'")
+    parser.add_argument("--logs", type = str, required=True, help="Path saved model")
+    parser.add_argument("--num_epochs", type=int, default=30, help="batch size")
+    parser.add_argument("--batch_size", type=int, default=2, help="batch size")
+    parser.add_argument("--init_lr", type=float, default=0.002, help="Starting learning rate")
+    parser.add_argument("--pretrained", type=str, default=None, help="Pretrained model path")
+    parser.add_argument("--num_workers", type=int, default=8, help="Number of worker process data")
+    args = parser.parse_args()
+
+    main(args)
     

@@ -52,6 +52,7 @@ class DatasetLoader(Dataset):
 
         self.image_num = len(self.image_path_and_type)
         self.indices = np.random.permutation(self.image_num)
+        self.num_age_classes = 17
         
 
     def __len__(self):
