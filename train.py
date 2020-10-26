@@ -89,14 +89,21 @@ class ModelAgeGender:
                 output = self.model(image)
 
                 score_age, pred_age, pred_gender = output
-                loss_age += self.cost_nll(pred_age, label_age)         # Change this
-                loss_gender += self.cost_nll(pred_gender, label_gender)      # Change this
-                running_loss = running_loss + (loss_age + loss_gender)
+                loss_age = self.cost_nll(pred_age, label_age)         # Change this
+                loss_gender = self.cost_nll(pred_gender, label_gender)      # Change this
+                train_loss = loss_age + loss_gender
+
+                train_loss.backward()
+                self.optimizer.step()
+
+                loss_ages += loss_age.item()
+                loss_genders += loss_gender.item()
+                running_loss += train_loss.item()
 
             # Compute loss
-            loss_ages = loss_age.float()/len(self.train_generator)
-            loss_genders = loss_gender.float()/len(self.train_generator)
-            running_losses = running_loss.float()/len(self.train_generator)
+            loss_ages = loss_ages/len(self.train_generator)
+            loss_genders = loss_genders/len(self.train_generator)
+            running_losses = running_loss/len(self.train_generator)
             # Write tensorboard
             self.writer.add_scalar("Age loss", loss_ages, epoch+1)
             self.writer.add_scalar("Gender loss", loss_genders, epoch+1)
@@ -112,20 +119,26 @@ class ModelAgeGender:
     def _validate(self, epoch):
         self.model.eval()
         mae_age, mse_age, acc_gender = 0., 0., 0.
+
         with torch.no_grad():
             for inputs, labels in self.val_generator:
                 inputs = inputs.to(self.device)
-                label_age = None
-                label_gender = None
+                label_age, label_gender = labels
+                label_age = label_age.to(self.device)
+                label_gender = label_gender.to(self.device)
 
                 # Predict
                 output = self.model(inputs)
                 score_age, pred_age, pred_gender = output
 
+                print("predict_age", pred_age.topk(1, dim=1))
+                print("label_age",label_age)
+                
+                abc = pred_age.topk(1, dim=1)[1]
                 # compute mae and mse with age label
-                mae, mse = self.compute_mae(pred_age.topk(1, dim=1)[1], label_age)
+                mae = self.compute_mae_mse(pred_age.topk(1, dim=1)[1], label_age)
                 mae_age += mae
-                mse_age += mse
+                # mse_age += mse
 
                 # compute accuracy with gender label
                 pred_gender = torch.exp(pred_gender)
@@ -134,9 +147,9 @@ class ModelAgeGender:
                 acc_gender += torch.mean(equals.type(torch.FloatTensor)).item()
             
             # Mean mae, mse, l
-            mae_age = mae_age.float()/len(self.val_generator)
+            mae_age = mae_age/len(self.val_generator)
             # mse_age = mse_age.float()/len(self.val_generator)
-            acc_gender = acc_gender.float()/len(self.val_generator)
+            acc_gender = acc_gender/len(self.val_generator)
 
             # Write tensorboard
             self.writer.add_scalar("MAE age validation", mae, epoch)
@@ -148,7 +161,8 @@ class ModelAgeGender:
 
     def compute_mae_mse(self, predicted_age, target_age):
         mae, mse = 0., 0.
-        mae = torch.sum(torch.abs(predicted_age - target_age))
+        predicted_age = predicted_age.view(-1, 1)
+        target_age = predicted_age.view(-1, 1)# .type(torch.FloatTensor).item()
         # mse = torch.sum((predicted_age - target_age)**2)
         # return mae, mse           
         return mae
@@ -191,10 +205,10 @@ class ModelAgeGender:
         
 
 if __name__ == "__main__":
-    dataset_dir = "dataset/all_faces"
+    dataset_dir = "dataset/small_data"
     age_gender_model = ModelAgeGender()
     train_loader = DatasetLoader(dataset_dir, "train")
     val_loader = DatasetLoader(dataset_dir, "val")
-    age_gender_model.load_dataset((train_loader, val_loader), batch_size=1, num_workers=1)
+    age_gender_model.load_dataset((train_loader, val_loader), batch_size=2, num_workers=8)
     age_gender_model.train(num_epochs=1, learning_rate=0.02)
     
