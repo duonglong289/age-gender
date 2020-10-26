@@ -1,0 +1,17 @@
+# Cache
+*.pyc
+
+# vscode config
+.vscode
+
+# image
+dataset/
+*.jpg
+*.png
+
+# Model
+*.pt
+*.pth
+
+# Tensorboard
+runs
