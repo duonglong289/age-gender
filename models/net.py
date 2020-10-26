@@ -84,11 +84,12 @@ class ModelAgeGender:
         
         loss_ages, loss_genders, running_losses = 0, 0, 0
         train_loss = []
-        loss_age, loss_gender, running_loss = 0., 0., 0.
+        loss_age, loss_gender = 0., 0.
         # Train mode
         for epoch in range(num_epochs):
             self.model.train()
             self.epoch_count += 1
+            running_loss = 0
             for image, label in self.train_generator:
                 image = image.to(self.device)                               # 
                 label_age, label_gender = label
