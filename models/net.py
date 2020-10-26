@@ -178,8 +178,11 @@ class ModelAgeGender:
         ''' Compute mean absolute error, mean square error
         '''
         mae, mse = 0., 0.
+        
+        
         predicted_age = predicted_age.view(-1, 1)
-        target_age = predicted_age.view(-1, 1)# .type(torch.FloatTensor).item()
+        target_age = target_age.view(-1, 1)# .type(torch.FloatTensor).item()
+        mae = torch.sum(torch.abs(predicted_age - target_age))
         # mse = torch.sum((predicted_age - target_age)**2)
         # return mae, mse           
         return mae
