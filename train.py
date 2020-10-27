@@ -34,14 +34,14 @@ def train(args):
 
     # Init model
     age_gender_model = ModelAgeGender(log=log_dir)
-    age_gender_model.init_model(num_age_classes=17)
+    age_gender_model.init_model(num_age_classes=None)
 
     age_gender_model.load_dataset((train_loader, val_loader), batch_size=batch_size, num_workers=num_workers)
 
     # Train 5 epoch with freezed backbone
-    age_gender_model.train(num_epochs=5, learning_rate=init_lr, freeze=True)
+    age_gender_model.train(num_epochs=15, learning_rate=init_lr, freeze=True)
     # Then unfreeze all layers
-    age_gender_model.train(num_epochs=num_epochs-5, learning_rate=init_lr/10, freeze=True)
+    age_gender_model.train(num_epochs=num_epochs-15, learning_rate=init_lr/10, freeze=True)
 
     age_gender_model.save_model(model_name="last.pt")
     age_gender_model.writer.close()
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Training Liveness Detection")
     parser.add_argument("--dataset", type=str, required=True, help="Path to dataset consist of 'train' and 'val'")
     parser.add_argument("--logs", type = str, required=True, help="Path saved model")
-    parser.add_argument("--num_epochs", type=int, default=30, help="batch size")
+    parser.add_argument("--num_epochs", type=int, default=30, help="num epoch")
     parser.add_argument("--batch_size", type=int, default=2, help="batch size")
     parser.add_argument("--init_lr", type=float, default=0.002, help="Starting learning rate")
     parser.add_argument("--pretrained", type=str, default=None, help="Pretrained model path")

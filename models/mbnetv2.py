@@ -161,18 +161,22 @@ class MobileNetV2(nn.Module):
         self.features = nn.Sequential(*features)
 
         # building classifier for age and gender
-        self.classifier_age = nn.Sequential(
-            nn.Linear(self.last_channel, 512),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(512, num_age_classes)
-        )
-        self.classifier_gender = nn.Sequential(
-            nn.Linear(self.last_channel, 512),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(512, num_gender_classes)
-        )
+        self.age_cls = False
+        if num_age_classes is not None:
+            self.age_cls = True
+            self.classifier_age = nn.Sequential(
+                nn.Linear(self.last_channel, 512),
+                nn.ReLU(),
+                nn.Dropout(0.2),
+                nn.Linear(512, num_age_classes))
+
+        if num_gender_classes is not None:
+            self.gender_cls = True
+            self.classifier_gender = nn.Sequential(
+                nn.Linear(self.last_channel, 512),
+                nn.ReLU(),
+                nn.Dropout(0.2),
+                nn.Linear(512, num_gender_classes))
 
         # weight initialization
         for m in self.modules():
@@ -193,12 +197,21 @@ class MobileNetV2(nn.Module):
         x = self.features(x)
         # Cannot use "squeeze" as batch-size can be 1 => must use reshape with x.shape[0]
         x = nn.functional.adaptive_avg_pool2d(x, (1, 1)).reshape(x.shape[0], -1)
-        age = self.classifier_age(x)
-        age_prob = F.log_softmax(age, dim=1)
-        
-        gender = self.classifier_gender(x)
-        gender = F.log_softmax(gender, dim=1)
-        return age, age_prob, gender
+        # Age classifier 
+        if self.age_cls:
+            age = self.classifier_age(x)
+            age_prob = F.log_softmax(age, dim=1)
+        # Gender classifier
+        if self.gender_cls:
+            gender = self.classifier_gender(x)
+            gender = F.log_softmax(gender, dim=1)
+
+        if self.age_cls and self.gender_cls:
+            return age, age_prob, gender
+        elif self.age_cls and not self.gender_cls:
+            return age, age_prob
+        else:
+            return gender
 
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)
@@ -238,8 +251,6 @@ def mobilenet_v2(pretrained: bool = False, **kwargs: Any) -> MobileNetV2:
         model = load_my_state_dict(model, progress=progress)
 
     return model
-
-
 
 
 if __name__ == "__main__":

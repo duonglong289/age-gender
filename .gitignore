@@ -10,7 +10,7 @@ dataset/
 *.png
 
 # Model
-logs
+logs*
 *.pt
 *.pth
 

@@ -47,6 +47,8 @@ class ModelAgeGender:
             self.model = mobilenet_v2(pretrained=True, **kwargs)
         else:
             raise ValueError("Do not support model {}!".format(model_name))
+        self.age_classifier = self.model.age_cls
+        self.gender_classifier = self.model.gender_cls
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self._init_param()
@@ -73,10 +75,12 @@ class ModelAgeGender:
             for params in self.model.parameters():
                 params.requires_grad = False
             # Unfreeze 2 heads of age and gender branchs
-            for params in self.model.classifier_age.parameters():
-                params.requires_grad = True
-            for params in self.model.classifier_gender.parameters():
-                params.requires_grad = True
+            if self.age_classifier:
+                for params in self.model.classifier_age.parameters():
+                    params.requires_grad = True
+            if self.gender_classifier:
+                for params in self.model.classifier_gender.parameters():
+                    params.requires_grad = True
         # Unfreeze all layers
         else:
             for params in self.model.parameters():
@@ -84,27 +88,39 @@ class ModelAgeGender:
         
         loss_ages, loss_genders, running_losses = 0, 0, 0
         train_loss = []
-        loss_age, loss_gender = 0., 0.
+
+        # debug
+        criterion_gender = nn.NLLLoss()
+
         # Train mode
         for epoch in range(num_epochs):
+            running_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
             self.model.train()
             self.epoch_count += 1
-            running_loss = 0
             for image, label in self.train_generator:
-                image = image.to(self.device)                               # 
+                image = image.to(self.device)                               
                 label_age, label_gender = label
-                
                 label_age = torch.LongTensor(label_age).to(self.device)
                 label_gender = torch.LongTensor(label_gender).to(self.device)
-                self.optimizer.zero_grad()
     
                 output = self.model(image)
 
-                score_age, pred_age, pred_gender = output
-                loss_age = self.cost_nll(pred_age, label_age)               #  
-                loss_gender = self.cost_nll(pred_gender, label_gender)      # 
-                train_loss = loss_age + loss_gender
+                if self.age_classifier and self.gender_classifier:
+                    score_age, pred_age, pred_gender = output
+                    loss_age = self.cost_nll(pred_age, label_age)               
+                    loss_gender = self.cost_nll(pred_gender, label_gender)       
+                    train_loss = loss_age + loss_gender
+                elif self.age_classifier and not self.gender_classifier:
+                    score_age, pred_age = output 
+                    loss_age = self.cost_nll(pred_age, label_age)                    
+                    train_loss = loss_age
+                else:
+                    pred_gender = output
+                    # loss_gender = self.cost_nll(pred_gender, label_gender)
+                    loss_gender = criterion_gender(pred_gender, label_gender)
+                    train_loss = loss_gender
 
+                self.optimizer.zero_grad()
                 train_loss.backward()
                 self.optimizer.step()
 
@@ -115,11 +131,11 @@ class ModelAgeGender:
             # Compute loss
             loss_ages = loss_ages/len(self.train_generator)
             loss_genders = loss_genders/len(self.train_generator)
-            running_losses = running_loss/len(self.train_generator)
+            running_loss = running_loss/len(self.train_generator)
             # Write tensorboard
             self.writer.add_scalar("Age loss", loss_ages, epoch+1)
             self.writer.add_scalar("Gender loss", loss_genders, epoch+1)
-            self.writer.add_scalar("Train loss", running_losses, epoch+1)
+            self.writer.add_scalar("Train loss", running_loss, epoch+1)
             
             # Evaluate
             mae_age, acc_gender = self._validate(epoch+1)
@@ -127,7 +143,7 @@ class ModelAgeGender:
             # Monitor
             if verbose:
                 print("Epoch {}: Loss age: {} - Loss gender: {} - Loss train: {} - MAE age: {} - Acc gender: {}"
-                    .format(self.epoch_count, loss_ages, loss_genders, running_losses, mae_age, acc_gender))
+                    .format(self.epoch_count, loss_ages, loss_genders, running_loss, mae_age, acc_gender))
             
             # Save model
             self.save_statedict(mae_age, acc_gender)
@@ -139,6 +155,7 @@ class ModelAgeGender:
         '''
         self.model.eval()
         mae_age, mse_age, acc_gender = 0., 0., 0.
+        criterion_gender = nn.NLLLoss()
 
         with torch.no_grad():
             for inputs, labels in self.val_generator:
@@ -149,18 +166,33 @@ class ModelAgeGender:
 
                 # Predict
                 output = self.model(inputs)
-                score_age, pred_age, pred_gender = output
+
+                if self.age_classifier and self.gender_classifier:
+                    score_age, pred_age, pred_gender = output
+                    loss_age = self.cost_nll(pred_age, label_age)               
+                    loss_gender = self.cost_nll(pred_gender, label_gender)       
+                    train_loss = loss_age + loss_gender
+                elif self.age_classifier and not self.gender_classifier:
+                    score_age, pred_age = output 
+                    loss_age = self.cost_nll(pred_age, label_age)                    
+                    train_loss = loss_age
+                else:
+                    pred_gender = output
+                    loss_gender = criterion_gender(pred_gender, label_gender)       
+                    train_loss = loss_gender
 
                 # compute mae and mse with age label
-                mae = self.compute_mae_mse(pred_age.topk(1, dim=1)[1], label_age)
-                mae_age += mae
-                # mse_age += mse
+                if self.age_classifier:
+                    mae = self.compute_mae_mse(pred_age.topk(1, dim=1)[1], label_age)
+                    mae_age += mae
+                    # mse_age += mse
 
                 # compute accuracy with gender label
-                pred_gender = torch.exp(pred_gender)
-                top_prob_gender, top_class_gender = pred_gender.topk(1, dim=1)
-                equals = top_class_gender == label_gender.view(*top_class_gender.shape)
-                acc_gender += torch.mean(equals.type(torch.FloatTensor)).item()
+                if self.gender_classifier:
+                    pred_gender = torch.exp(pred_gender)
+                    top_prob_gender, top_class_gender = pred_gender.topk(1, dim=1)
+                    equals = top_class_gender == label_gender.view(*top_class_gender.shape)
+                    acc_gender += torch.mean(equals.type(torch.FloatTensor)).item()
             
             # Mean mae, mse, l
             mae_age = mae_age/len(self.val_generator)
@@ -168,7 +200,7 @@ class ModelAgeGender:
             acc_gender = acc_gender/len(self.val_generator)
 
             # Write tensorboard
-            self.writer.add_scalar("MAE age validation", mae, epoch)
+            self.writer.add_scalar("MAE age validation", mae_age, epoch)
             # self.writer.add_scalar("MSE age validation". mse, epoch)
             self.writer.add_scalar("Accuracy gender validation", acc_gender, epoch)
         
