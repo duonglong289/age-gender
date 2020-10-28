@@ -10,7 +10,8 @@ from datetime import datetime
 import torch
 import torch.optim as optim
 import torch.nn as nn 
-import torchvision.transforms as transforms
+# import torchvision.transforms as transforms
+import torchvision.transforms as T
 
 from tensorboardX import SummaryWriter
 
@@ -93,6 +94,7 @@ class ModelAgeGender:
         criterion_gender = nn.NLLLoss()
 
         # Train mode
+        print("Start training...")
         for epoch in range(num_epochs):
             running_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
             self.model.train()
@@ -267,10 +269,13 @@ class ModelAgeGender:
 
     
     def load_statedict(self, state_dict_path, device="cpu"):
+        # self.model = nn.DataParallel(self.model)
         self.device = torch.device(device)
-        state_dict = torch.load(state_dict_path, map_location=self.device)
+        # state_dict = torch.load(torch.load(state_dict_path), map_location=self.device)
+        # import ipdb; ipdb.set_trace()
+        self.model.load_state_dict(torch.load(state_dict_path), strict=False)
         self.model.eval().to(self.device)
-        self.model.load_state_dict(state_dict)
+        # self.model.load_state_dict(state_dict)
 
 
 
@@ -284,7 +289,18 @@ class ModelAgeGender:
         -------
             age, gender
         '''
-        pass
+        # normalize_transform = T.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        # transform = T.Compose([
+        #             # T.Resize([self.image_size,self.image_size]),
+        #             T.Resize([224,224]),
+        #             T.ToTensor(),
+        #             normalize_transform])
+        # img_transform = transform(image)
+        image = image.to(self.device)
+        import ipdb; ipdb.set_trace()
+        result = self.model(image) 
+        # pass
+        return result
 
         
 
