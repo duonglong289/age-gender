@@ -35,9 +35,9 @@ class ModelAgeGender:
         return self.model.__repr__()
 
 
-    def _init_param(self):
+    def _init_param(self, learning_rate=0.002):
         w_decay = 0.005
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.02, weight_decay=w_decay)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
         
 
     def init_model(self, model_name="mobilenet_v2", pretrained=True, **kwargs):
@@ -51,7 +51,6 @@ class ModelAgeGender:
         self.gender_classifier = self.model.gender_cls
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
-        self._init_param()
 
 
     def load_dataset(self, data_loader, batch_size=1, num_workers=8):
@@ -69,6 +68,7 @@ class ModelAgeGender:
 
     
     def train(self, num_epochs, learning_rate, freeze=False, verbose=True):
+        self._init_param(learning_rate)
         # Freeze backbone
         if freeze:
             # Freeze all layers
@@ -84,17 +84,12 @@ class ModelAgeGender:
         # Unfreeze all layers
         else:
             for params in self.model.parameters():
-                params.requires_grad = True
-        
-        loss_ages, loss_genders, running_losses = 0, 0, 0
-        train_loss = []
-
-        # debug
-        criterion_gender = nn.NLLLoss()
+                params.requires_grad = True      
 
         # Train mode
         for epoch in range(num_epochs):
-            running_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
+            running_loss, loss_ages, loss_genders = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
+            train_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
             self.model.train()
             self.epoch_count += 1
             for image, label in self.train_generator:
@@ -116,8 +111,7 @@ class ModelAgeGender:
                     train_loss = loss_age
                 else:
                     pred_gender = output
-                    # loss_gender = self.cost_nll(pred_gender, label_gender)
-                    loss_gender = criterion_gender(pred_gender, label_gender)
+                    loss_gender = self.cost_nll(pred_gender, label_gender)
                     train_loss = loss_gender
 
                 self.optimizer.zero_grad()
@@ -129,9 +123,9 @@ class ModelAgeGender:
                 running_loss += train_loss.item()
 
             # Compute loss
-            loss_ages = loss_ages/len(self.train_generator)
-            loss_genders = loss_genders/len(self.train_generator)
-            running_loss = running_loss/len(self.train_generator)
+            loss_ages = loss_ages.item()/len(self.train_generator)
+            loss_genders = loss_genders.item()/len(self.train_generator)
+            running_loss = running_loss.item()/len(self.train_generator)
             # Write tensorboard
             self.writer.add_scalar("Age loss", loss_ages, epoch+1)
             self.writer.add_scalar("Gender loss", loss_genders, epoch+1)
@@ -155,7 +149,6 @@ class ModelAgeGender:
         '''
         self.model.eval()
         mae_age, mse_age, acc_gender = 0., 0., 0.
-        criterion_gender = nn.NLLLoss()
 
         with torch.no_grad():
             for inputs, labels in self.val_generator:
@@ -171,15 +164,15 @@ class ModelAgeGender:
                     score_age, pred_age, pred_gender = output
                     loss_age = self.cost_nll(pred_age, label_age)               
                     loss_gender = self.cost_nll(pred_gender, label_gender)       
-                    train_loss = loss_age + loss_gender
+                    val_loss = loss_age + loss_gender
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
                     loss_age = self.cost_nll(pred_age, label_age)                    
-                    train_loss = loss_age
+                    val_loss = loss_age
                 else:
                     pred_gender = output
                     loss_gender = criterion_gender(pred_gender, label_gender)       
-                    train_loss = loss_gender
+                    val_loss = loss_gender
 
                 # compute mae and mse with age label
                 if self.age_classifier:

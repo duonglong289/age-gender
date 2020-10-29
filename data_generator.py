@@ -81,7 +81,7 @@ class DatasetLoader(Dataset):
         normalize_transform = T.Normalize(mean=PIXEL_MEAN, std=PIXEL_STD)
         if self.stage=="train":
             transform = T.Compose([
-                    T.Resize([self.image_size,self.image_size]),
+                    T.Resize([self.image_size,self.image_size], Image.BICUBIC),
                     T.ColorJitter(brightness=(0.8, 1.2)),
                     T.RandomHorizontalFlip(),
                     T.ToTensor(),
@@ -156,7 +156,7 @@ class DatasetLoader(Dataset):
             labels = (age_cls, gender_cls)
             if image_path.is_file():
                 self.image_path_and_type.append([str(image_path), labels])
-        print(self.stage)
+        print("Dataset {} stage infomation".format(self.stage.upper))
         print("Number images:", len(self.image_path_and_type))
         print("Class age",age_count)
         print("Class gender", gender_count)
