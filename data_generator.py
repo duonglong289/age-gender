@@ -21,12 +21,12 @@ logger = logging.getLogger()
 
 aug = iaa.Sequential([
     iaa.OneOf([
-        iaa.Sometimes(0.3, LightFlare()),
-        iaa.Sometimes(0.3, ParallelLight()),
-        iaa.Sometimes(0.3, SpotLight())
+        iaa.Sometimes(0.2, LightFlare()),
+        iaa.Sometimes(0.2, ParallelLight()),
+        iaa.Sometimes(0.2, SpotLight())
     ]),
-    iaa.Sometimes(0.05, iaa.PerspectiveTransform(scale=(0.01, 0.1), keep_size=True)),
-    iaa.Sometimes(0.3, 
+    iaa.Sometimes(0.025, iaa.PerspectiveTransform(scale=(0.01, 0.1), keep_size=True)),
+    iaa.Sometimes(0.2, 
         iaa.OneOf([
             iaa.GaussianBlur((0, 1.5)),
             iaa.AverageBlur(k=(3, 5)),
@@ -150,8 +150,13 @@ class DatasetLoader(Dataset):
         gender_count = [0]*2
         for image_path in data_imgs:
             image_name = image_path.name 
-            age =image_name.split("A")[1].split(".")[0].split("G")[0]
-            gender =image_name.split("A")[1].split(".")[0].split("G")[1]
+            # age =image_name.split("A")[1].split(".")[0].split("G")[0]
+            # gender =image_name.split("A")[1].split(".")[0].split("G")[1]
+
+            # update load label for mega_age_gender dataset
+            age = image_name.strip().split("_")[1].split("A")[1]
+            gender = image_name.strip().split("_")[2][1]
+            
             age_cls = self.age_to_cls(int(age))
             gender_cls = int(gender)
             age_count[age_cls] += 1
