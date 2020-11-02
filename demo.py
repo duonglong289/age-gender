@@ -31,7 +31,7 @@ def draw_face(frame, face_crd, age, gender):
    
     info_face = "Age:{}-Gender:{}".format(age, gender)
     font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 0.25
+    font_scale = 0.5
     color = (0, 0, 255)
     thickness = 1
 
@@ -65,7 +65,7 @@ def demo_video(video_path=None):
             face_img, face_crd = get_face(frame, face_info)
             age, gender = estimator.predict_image(face_img[:,:, ::-1])
             frame = draw_face(frame, face_crd, age, gender)
-        
+        cv2.namedWindow("", cv2.WINDOW_NORMAL)
         cv2.imshow("", frame)
         key = cv2.waitKey(1) & 0xff
         if key == ord("q"):
@@ -93,5 +93,5 @@ def demo_image(image_path):
 
 
 if __name__ == "__main__":
-    # demo_video()
-    demo_image("test_dataset/images.jpeg")
+    demo_video()
+    # demo_image("test_dataset/images.jpeg")

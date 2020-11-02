@@ -156,7 +156,7 @@ class DatasetLoader(Dataset):
             # update load label for mega_age_gender dataset
             age = image_name.strip().split("_")[1].split("A")[1]
             gender = image_name.strip().split("_")[2][1]
-            
+
             age_cls = self.age_to_cls(int(age))
             gender_cls = int(gender)
             age_count[age_cls] += 1
@@ -168,7 +168,7 @@ class DatasetLoader(Dataset):
         logger.info("Number images: {}".format(len(self.image_path_and_type)))
         logger.info("Class age {}".format(age_count))
         logger.info("Class gender {}".format(gender_count))
-        print(val_list)
+
 
 
 if __name__ == "__main__":

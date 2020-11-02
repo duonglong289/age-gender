@@ -80,9 +80,6 @@ class ModelAgeGender:
 
     
     def train(self, num_epochs, learning_rate, freeze=False, verbose=True):
-        if torch.cuda.device_count() > 1:
-            logger.info("Let's use", torch.cuda.device_count(), "GPUs!")
-            self.model = nn.DataParallel(self.model)
         self._init_param(learning_rate)
         # Freeze backbone
         if freeze:
