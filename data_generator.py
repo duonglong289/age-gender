@@ -1,20 +1,23 @@
 import glob
 import os
 import numpy as np 
-import torch 
 import imgaug.augmenters as iaa 
 import imgaug as ia 
 import random
-
+import logging
 from PIL import Image
 import cv2
 from pathlib import Path
 
+
+import torch 
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
 
 from custom_augmentation import (LightFlare, ParallelLight, SpotLight)
+logger = logging.getLogger()
+# logger.setLevel(os.environ.get ("LOGLEVEL", "INFO"))
 
 aug = iaa.Sequential([
     iaa.OneOf([
@@ -66,10 +69,10 @@ class DatasetLoader(Dataset):
         img = cv2.imread(image_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         age, gender = label
-        try:
-            img = aug.augment(image=img)
-        except:
-            img = img
+        # try:
+        #     img = aug.augment(image=img)
+        # except:
+        #     img = img
                 
         image = Image.fromarray(img)
         X = self.transform_data(image)
@@ -156,12 +159,14 @@ class DatasetLoader(Dataset):
             labels = (age_cls, gender_cls)
             if image_path.is_file():
                 self.image_path_and_type.append([str(image_path), labels])
-        print("Dataset {} stage infomation".format(self.stage.upper))
-        print("Number images:", len(self.image_path_and_type))
-        print("Class age",age_count)
-        print("Class gender", gender_count)
+        logger.info("Dataset {} stage infomation".format(self.stage.upper()))
+        logger.info("Number images: {}".format(len(self.image_path_and_type)))
+        logger.info("Class age {}".format(age_count))
+        logger.info("Class gender {}".format(gender_count))
+        print(val_list)
+
 
 if __name__ == "__main__":
-    dataset = DatasetLoader("dataset/all_faces", "train")
-    dataset = DatasetLoader("dataset/all_faces", "val")
+    dataset = DatasetLoader("dataset/small_data", "val")
+    dataset = DatasetLoader("dataset/small_data", "val")
     

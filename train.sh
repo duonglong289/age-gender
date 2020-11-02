@@ -1,7 +1,9 @@
 python3 train.py \
-    --dataset=dataset/all_faces \
+    --model_name=mobilenet_v2 \
+    --widen_factor=1 \
+    --dataset=dataset/small_data \
     --num_epochs=50 \
     --batch_size=64 \
     --init_lr=0.002 \
     --num_workers=8 \
-    --logs="./logs"
+    --logs="./logs/log_"

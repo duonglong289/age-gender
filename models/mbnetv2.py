@@ -95,7 +95,7 @@ class MobileNetV2(nn.Module):
         self,
         num_age_classes: int = 100,
         num_gender_classes: int = 2,
-        width_mult: float = 1.0,
+        widen_factor: float = 1.0,
         inverted_residual_setting: Optional[List[List[int]]] = None,
         round_nearest: int = 8,
         block: Optional[Callable[..., nn.Module]] = None,
@@ -106,7 +106,7 @@ class MobileNetV2(nn.Module):
         Args:
             num_age_classes (int): Number of classes ages
             num_gender_classes (int): Number of class genders
-            width_mult (float): Width multiplier - adjusts number of channels in each layer by this amount
+            widen_factor (float): Width multiplier - adjusts number of channels in each layer by this amount
             inverted_residual_setting: Network structure
             round_nearest (int): Round the number of channels in each layer to be a multiple of this number
             Set to 1 to turn off rounding
@@ -142,13 +142,13 @@ class MobileNetV2(nn.Module):
                              "or a 4-element list, got {}".format(inverted_residual_setting))
 
         # building first layer
-        input_channel = _make_divisible(input_channel * width_mult, round_nearest)
-        self.last_channel = _make_divisible(last_channel * max(1.0, width_mult), round_nearest)
+        input_channel = _make_divisible(input_channel * widen_factor, round_nearest)
+        self.last_channel = _make_divisible(last_channel * max(1.0, widen_factor), round_nearest)
         features: List[nn.Module] = [ConvBNReLU(3, input_channel, stride=2, norm_layer=norm_layer)]
 
         # building inverted residual blocks
         for t, c, n, s in inverted_residual_setting:
-            output_channel = _make_divisible(c * width_mult, round_nearest)
+            output_channel = _make_divisible(c * widen_factor, round_nearest)
             for i in range(n):
                 stride = s if i == 0 else 1
                 features.append(block(input_channel, output_channel, stride, expand_ratio=t, norm_layer=norm_layer))
@@ -244,7 +244,11 @@ def mobilenet_v2(pretrained: bool = False, **kwargs: Any) -> MobileNetV2:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    model = MobileNetV2(**kwargs)
+    model = MobileNetV2(
+        widen_factor=kwargs.get('widen_factor', 1.0),
+        num_age_classes=kwargs.get('num_age_classes', 100),
+        num_gender_classes=kwargs.get('num_gender_classes', 2)
+    )
 
     if pretrained:
         progress = True

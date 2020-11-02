@@ -19,6 +19,10 @@ from tensorboardX import SummaryWriter
 from models.net import ModelAgeGender
 
 def train(args):
+    # Model
+    model_name = args.model_name
+    widen_factor = args.widen_factor
+
     # Params
     batch_size = args.batch_size
     log_dir = args.logs
@@ -34,7 +38,7 @@ def train(args):
 
     # Init model
     age_gender_model = ModelAgeGender(log=log_dir)
-    age_gender_model.init_model()
+    age_gender_model.init_model(model_name=model_name, widen_factor=widen_factor, num_age_classes=None)
 
     age_gender_model.load_dataset((train_loader, val_loader), batch_size=batch_size, num_workers=num_workers)
 
@@ -51,6 +55,8 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Training Liveness Detection")
     parser.add_argument("--dataset", type=str, required=True, help="Path to dataset consist of 'train' and 'val'")
+    parser.add_argument("--model_name", type=str, default="mobilenet_v2", help="Model name")
+    parser.add_argument("--widen_factor", type=int, default=1, help="Factor of model size")
     parser.add_argument("--logs", type = str, required=True, help="Path saved model")
     parser.add_argument("--num_epochs", type=int, default=30, help="num epoch")
     parser.add_argument("--batch_size", type=int, default=2, help="batch size")
