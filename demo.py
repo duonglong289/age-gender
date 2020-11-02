@@ -16,7 +16,7 @@ def get_face(frame, coord):
     h_f = int(b-t)
 
     l_f = max(0, int(l - 0.2*w_f))
-    t_f = max(0, int(t - 0.2*h_f))
+    t_f = max(0, int(t - 0.5*h_f))
     r_f = min(width, int(r + 0.2*w_f))
     b_f = min(height, int(b + 0.05*h_f))
 
@@ -39,7 +39,6 @@ def draw_face(frame, face_crd, age, gender):
     return frame
 
 
-
 def demo_video(video_path=None):
     if video_path is None:
         video_path = 0
@@ -47,7 +46,7 @@ def demo_video(video_path=None):
     detector = RetinaNetDetector()
     estimator = ModelAgeGender()
     estimator.init_model("mobilenet_v2", num_age_classes=16)
-    estimator.load_statedict("weights/statedict_01112020.pt")
+    estimator.load_statedict("weights/statedict_02112020.pt")
 
     while True:
         ret, frame = vid.read()

@@ -63,6 +63,7 @@ class ModelAgeGender:
         self.gender_classifier = self.model.gender_cls
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
+        self.num_age_classes = kwargs.get("num_age_classes", 100)
 
 
     def load_dataset(self, data_loader, batch_size=1, num_workers=8):
@@ -105,31 +106,36 @@ class ModelAgeGender:
             self.model.train()
             self.epoch_count += 1
             for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(epoch)):
-                image = image.to(self.device)                               
+                image = image.to(self.device)
                 label_age, label_gender = label
-                label_age = torch.LongTensor(label_age).to(self.device)
+                # label_age = torch.LongTensor(label_age).to(self.device)
+                label_age = label_age.to(self.device)
                 label_gender = torch.LongTensor(label_gender).to(self.device)
     
                 output = self.model(image)
 
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
-                    loss_age = cost_fn.cost_nll(pred_age, label_age)               
-                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
+                    # loss_age = cost_fn.cost_nll(pred_age, label_age)
+                    loss_age = cost_fn.cost_ordinary(score_age, label_age)
+                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)
                     train_loss = loss_age + loss_gender
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
-                    loss_age = cost_fn.cost_nll(pred_age, label_age)                    
+                    # loss_age = cost_fn.cost_nll(pred_age, label_age)
+                    loss_age = cost_fn.cost_ordinary(score_age, label_age)
                     train_loss = loss_age
                 else:
                     pred_gender = output
                     loss_gender = cost_fn.cost_nll(pred_gender, label_gender)
                     train_loss = loss_gender
 
+                # Backward
                 self.optimizer.zero_grad()
                 train_loss.backward()
                 self.optimizer.step()
-
+                
+                # Compute loss
                 loss_ages += loss_age.item()
                 loss_genders += loss_gender.item()
                 running_loss += train_loss.item()
@@ -176,20 +182,22 @@ class ModelAgeGender:
                 inputs = inputs.to(self.device)
                 label_age, label_gender = labels
                 label_age = label_age.to(self.device)
-                label_gender = label_gender.to(self.device)
+                label_gender = torch.LongTensor(label_gender).to(self.device)
 
                 # Predict
                 output = self.model(inputs)
 
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
-                    loss_age = cost_fn.cost_nll(pred_age, label_age)               
+                    # loss_age = cost_fn.cost_nll(pred_age, label_age)
+                    loss_age = cost_fn.cost_ordinary(score_age, label_age)
                     loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
                     val_loss = loss_age + loss_gender
 
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
-                    loss_age = cost_fn.cost_nll(pred_age, label_age)                    
+                    # loss_age = cost_fn.cost_nll(pred_age, label_age)
+                    loss_age = cost_fn.cost_ordinary(score_age, label_age)
                     val_loss = loss_age
 
                 else:
@@ -203,7 +211,7 @@ class ModelAgeGender:
 
                 # compute mae and mse with age label
                 if self.age_classifier:
-                    mae = metrics.compute_mae_mse(pred_age.topk(1, dim=1)[1], label_age)
+                    mae = metrics.compute_mae_mse(score_age, pred_age, label_age)
                     mae_age += mae
                     # mse_age += mse
 

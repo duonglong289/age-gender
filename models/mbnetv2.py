@@ -168,7 +168,10 @@ class MobileNetV2(nn.Module):
                 nn.Linear(self.last_channel, 512),
                 nn.ReLU(),
                 nn.Dropout(0.2),
-                nn.Linear(512, num_age_classes))
+                # nn.Linear(512, num_age_classes))
+                nn.Linear(512, 1))
+
+            self.linear_1_bias = nn.Parameter(torch.zeros(num_age_classes-1).float())
 
         if num_gender_classes is not None:
             self.gender_cls = True
@@ -199,17 +202,23 @@ class MobileNetV2(nn.Module):
         x = nn.functional.adaptive_avg_pool2d(x, (1, 1)).reshape(x.shape[0], -1)
         # Age classifier 
         if self.age_cls:
-            age = self.classifier_age(x)
-            age_prob = F.log_softmax(age, dim=1)
+            age_score = self.classifier_age(x)
+            age_score = age_score + self.linear_1_bias
+
+            # age_prob = F.log_softmax(age, dim=1)
+            age_prob = torch.sigmoid(age_score)
+
         # Gender classifier
         if self.gender_cls:
             gender = self.classifier_gender(x)
             gender = F.log_softmax(gender, dim=1)
 
         if self.age_cls and self.gender_cls:
-            return age, age_prob, gender
+            return age_score, age_prob, gender
+
         elif self.age_cls and not self.gender_cls:
-            return age, age_prob
+            return age_score, age_prob
+        
         else:
             return gender
 

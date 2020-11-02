@@ -146,22 +146,25 @@ class DatasetLoader(Dataset):
             data_imgs = train_list
         else:
             data_imgs = val_list
-        age_count = [0]*16
+        age_count = [0]*100
         gender_count = [0]*2
         for image_path in data_imgs:
             image_name = image_path.name 
-            # age =image_name.split("A")[1].split(".")[0].split("G")[0]
-            # gender =image_name.split("A")[1].split(".")[0].split("G")[1]
+            age = image_name.split("A")[1].split(".")[0].split("G")[0]
+            gender = image_name.split("A")[1].split(".")[0].split("G")[1]
 
             # update load label for mega_age_gender dataset
-            age = image_name.strip().split("_")[1].split("A")[1]
-            gender = image_name.strip().split("_")[2][1]
+            # age = image_name.strip().split("_")[1].split("A")[1]
+            # gender = image_name.strip().split("_")[2][1]
 
             age_cls = self.age_to_cls(int(age))
+            age_levels = [1]*age_cls + [0] * (100 - 1- age_cls)
+            age_levels = torch.tensor(age_levels, dtype=torch.float32)
+
             gender_cls = int(gender)
             age_count[age_cls] += 1
             gender_count[gender_cls] += 1
-            labels = (age_cls, gender_cls)
+            labels = (age_levels, gender_cls)
             if image_path.is_file():
                 self.image_path_and_type.append([str(image_path), labels])
         logger.info("Dataset {} stage infomation".format(self.stage.upper()))
