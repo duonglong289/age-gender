@@ -12,7 +12,7 @@ from tqdm import tqdm
 import torch
 import torch.optim as optim
 import torch.nn as nn 
-import torchvision.transforms as transforms
+import torchvision.transforms as T
 
 import models.metrics as metrics
 import models.cost_fn as cost_fn
@@ -35,6 +35,7 @@ class ModelAgeGender:
             self.log = log
             os.makedirs(self.log, exist_ok=True)
 
+        self.transformer = self.build_transform()
         self.epoch_count = 0
         self.writer = SummaryWriter()
         
@@ -243,6 +244,40 @@ class ModelAgeGender:
         level = [1]*age + [0]*[NUM_AGE_CLASSES - 1 - age]
         return level
 
+    def age_to_class(self, age):
+        if age == 0:
+            return "[0-5]"
+        elif age == 1:
+            return "[5-10]"
+        elif age == 2:
+            return "[10-14]"
+        elif age == 3:
+            return "[14-18]"
+        elif age == 4:
+            return "[18-21]"
+        elif age == 5:
+            return "[21-25]"
+        elif age == 6:
+            return "[25-29]"
+        elif age == 7:
+            return "[29-34]"
+        elif age == 8:
+            return "[34-38]"
+        elif age == 9:
+            return "[38-42]"
+        elif age == 10:
+            return "[42-46]"
+        elif age == 11:
+            return "[46-50]"
+        elif age == 12:
+            return "[50-55]"
+        elif age == 13:
+            return "[55-60]"
+        elif age == 14:
+            return "[60-65]"
+        else:
+            return "[>65]"
+
 
     def save_model(self, mae=0, acc=0, model_name=None):
         self.model.eval()
@@ -265,8 +300,17 @@ class ModelAgeGender:
         self.model.eval().to(self.device)
         self.model.load_state_dict(state_dict)
 
-
-
+    def build_transform(self):
+        PIXEL_MEAN = [0.5, 0.5, 0.5]
+        PIXEL_STD =[0.5, 0.5, 0.5]
+        normalize_transform = T.Normalize(mean=PIXEL_MEAN, std=PIXEL_STD)
+        
+        transform = T.Compose([
+                T.ToPILImage(),
+                T.Resize([224, 224], Image.BILINEAR),
+                T.ToTensor(),
+                normalize_transform])
+        return transform
 
     def predict_image(self, image:np.ndarray):
         '''Predict age and gender
@@ -277,7 +321,21 @@ class ModelAgeGender:
         -------
             age, gender
         '''
-        pass
+        image = self.transformer(image)
+        image = image.unsqueeze(0)
+
+        age_score, age_prob, gender_prob = self.model(image)
+        age_prob = torch.exp(age_prob)
+        top_age_prob, top_age_class = age_prob.topk(1, dim=1)
+        range_age = self.age_to_class(top_age_class)
+
+        gender_prob = torch.exp(gender_prob)
+        top_gender_prob, top_gender_class = gender_prob.topk(1, dim=1)
+        if top_gender_class ==0:
+            gender = "Female"
+        else:
+            gender = "Male"
+        return range_age, gender
 
         
 

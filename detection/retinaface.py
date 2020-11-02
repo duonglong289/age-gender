@@ -1,9 +1,10 @@
 import numpy as np 
 import torch
-from detection_model.models.net import PriorBox, py_cpu_nms, decode, decode_landm
-from detection_model.models.cfg_retinaface import RetinaFace
+from detection.models.net import PriorBox, py_cpu_nms, decode, decode_landm
+from detection.models.cfg_retinaface import RetinaFace
 import cv2
 from mlchain import mlconfig
+mlconfig.load_config("mlconfig.yaml")
 
 def check_keys(model, pretrained_state_dict):
     ckpt_keys = set(pretrained_state_dict.keys())
@@ -45,7 +46,7 @@ class RetinaNetDetector:
             self.device = 'cuda:0'
         else: 
             self.device = 'cpu'
-
+        
         net = self.load_model(RetinaFace(
             cfg=cfg, phase='test'), model_path, self.device)
         net.eval()
@@ -128,6 +129,7 @@ class RetinaNetDetector:
     def load_model(self, model, pretrained_path, load_to_cpu):
         print('Loading pretrained model from {}'.format(pretrained_path))
         if load_to_cpu:
+            print(pretrained_path)
             pretrained_dict = torch.load(
                 pretrained_path, map_location=lambda storage, loc: storage)
         else:
@@ -142,3 +144,9 @@ class RetinaNetDetector:
         check_keys(model, pretrained_dict)
         model.load_state_dict(pretrained_dict, strict=False)
         return model
+
+if __name__ == "__main__":
+    detector = RetinaNetDetector()
+    img = cv2.imread("/media/geneous/01D62877FB2A4900/Techainer/face/test_liveness/crop_face.png")
+    res = detector.predict(img)
+    print(res)

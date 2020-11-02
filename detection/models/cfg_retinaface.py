@@ -5,9 +5,9 @@ import torchvision.models._utils as _utils
 import torch.nn.functional as F
 from collections import OrderedDict
 
-from detection_model.models.net import MobileNetV1 as MobileNetV1
-from detection_model.models.net import FPN as FPN
-from detection_model.models.net import SSH as SSH
+from detection.models.net import MobileNetV1 as MobileNetV1
+from detection.models.net import FPN as FPN
+from detection.models.net import SSH as SSH
 
 
 
