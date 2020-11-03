@@ -46,6 +46,7 @@ aug = iaa.Sequential([
 
 class DatasetLoader(Dataset):
     def __init__(self, dataDir, stage, batch_size=1, image_size=224):
+        self.num_age_classes = 100
         self.batch_size = batch_size
         self.image_size = image_size
         self.stage = stage
@@ -55,7 +56,7 @@ class DatasetLoader(Dataset):
 
         self.image_num = len(self.image_path_and_type)
         self.indices = np.random.permutation(self.image_num)
-        self.num_age_classes = 16
+        
         
 
     def __len__(self):
@@ -133,6 +134,12 @@ class DatasetLoader(Dataset):
             age_cls = 15
         return age_cls
 
+    def age_to_level(self, age):
+        ''' Convert age to levels, for ordinary regression task
+        '''
+        level = [1]*age + [0]*(self.num_age_classes - 1 - age)
+        return level
+
 
     def _load_dataset(self, dataDir):  
         random.seed(42)
@@ -146,20 +153,22 @@ class DatasetLoader(Dataset):
             data_imgs = train_list
         else:
             data_imgs = val_list
-        age_count = [0]*16
+        age_count = [0]*self.num_age_classes
         gender_count = [0]*2
         for image_path in data_imgs:
             image_name = image_path.name 
-            # age =image_name.split("A")[1].split(".")[0].split("G")[0]
-            # gender =image_name.split("A")[1].split(".")[0].split("G")[1]
+            age = image_name.split("A")[1].split(".")[0].split("G")[0]
+            gender = image_name.split("A")[1].split(".")[0].split("G")[1]
 
             # update load label for mega_age_gender dataset
-            age = image_name.strip().split("_")[1].split("A")[1]
-            gender = image_name.strip().split("_")[2][1]
+            # age = image_name.strip().split("_")[1].split("A")[1]
+            # gender = image_name.strip().split("_")[2][1]
 
-            age_cls = self.age_to_cls(int(age))
+            # age_cls = self.age_to_cls(int(age))
+            age_cls = self.age_to_level(int(age))
+            # age_cls = int(age)
             gender_cls = int(gender)
-            age_count[age_cls] += 1
+            age_count[int(age)] += 1
             gender_count[gender_cls] += 1
             labels = (age_cls, gender_cls)
             if image_path.is_file():

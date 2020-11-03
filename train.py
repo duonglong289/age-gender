@@ -38,7 +38,7 @@ def train(args):
 
     # Init model
     age_gender_model = ModelAgeGender(log=log_dir)
-    age_gender_model.init_model(model_name=model_name, widen_factor=widen_factor, num_age_classes=None)
+    age_gender_model.init_model(model_name=model_name, widen_factor=widen_factor, num_age_classes=100)
 
     age_gender_model.load_dataset((train_loader, val_loader), batch_size=batch_size, num_workers=num_workers)
 
