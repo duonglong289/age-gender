@@ -107,8 +107,6 @@ class ModelAgeGender:
             for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(self.epoch_count)):
                 image = image.to(self.device)                               
                 label_age, label_gender = label
-                # import ipdb; ipdb.set_trace()
-                # label_age = torch.LongTensor(label_age).to(self.device)
                 label_age = torch.stack(label_age, dim=1).to(self.device)
                 label_gender = torch.LongTensor(label_gender).to(self.device)
     
@@ -116,13 +114,12 @@ class ModelAgeGender:
 
                 if self.age_classifier and self.gender_classifier:
                     score_age, prob_age, pred_gender = output
-                    # loss_age = cost_fn.cost_nll(prob_age, label_age)
-                    loss_age = cost_fn.cost_ordinary(score_age, label_age)
+                    loss_age = cost_fn.cost_ordinary(score_age, label_age)/10
                     loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
                     train_loss = loss_age + loss_gender
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, prob_age = output 
-                    loss_age = cost_fn.cost_nll(prob_age, label_age)                    
+                    loss_age = cost_fn.cost_ordinary(score_age, label_age)
                     train_loss = loss_age
                 else:
                     pred_gender = output
@@ -152,14 +149,14 @@ class ModelAgeGender:
             # Monitor
             if verbose:
                 logger.info(f"Epoch {self.epoch_count}: \
-                        - Loss age train: {loss_ages} \
-                        - Loss gender train: {loss_genders} \
-                        - Loss train: {running_loss} \
-                        - Loss age val: {loss_age_val} \
-                        - Loss gender val: {loss_gender_val} \
-                        - Loss val: {val_loss} \
-                        - MAE age: {mae_age} \
-                        - Acc gender: {acc_gender}" \
+                        \n- Loss age train: {loss_ages} \
+                        \n- Loss gender train: {loss_genders} \
+                        \n- Loss train: {running_loss} \
+                        \n- Loss age val: {loss_age_val} \
+                        \n- Loss gender val: {loss_gender_val} \
+                        \n- Loss val: {val_loss} \
+                        \n- MAE age: {mae_age} \
+                        \n- Acc gender: {acc_gender}" \
                     )
             
             # Save model
@@ -328,19 +325,17 @@ class ModelAgeGender:
         image = image.unsqueeze(0)
 
         age_score, age_prob, gender_prob = self.model(image)
-        # import ipdb; ipdb.set_trace()
-        age_prob = torch.exp(age_prob)
-        top_age_prob, top_age_class = age_prob.topk(1, dim=1)
-        # import ipdb; ipdb.set_trace()
-        range_age = self.age_to_class(top_age_class)
-
+        # Predicted age
+        prob_levels = age_prob > 0.5
+        predicted_labels = torch.sum(prob_levels, dim=1)
+        # Predicted gender
         gender_prob = torch.exp(gender_prob)
         top_gender_prob, top_gender_class = gender_prob.topk(1, dim=1)
         if top_gender_class ==0:
             gender = "Female"
         else:
             gender = "Male"
-        print(gender)
+        
         return range_age, gender
 
         

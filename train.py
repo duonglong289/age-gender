@@ -29,23 +29,24 @@ def train(args):
     num_workers = args.num_workers
     num_epochs = args.num_epochs
     init_lr = args.init_lr
-    
+    num_age_classes = args.num_age_classes
+
     # Init dataset
     dataset_dir = args.dataset
-    train_loader = DatasetLoader(dataset_dir, "train")
-    val_loader = DatasetLoader(dataset_dir, "val")
+    train_loader = DatasetLoader(dataset_dir, "train", num_age_classes=num_age_classes)
+    val_loader = DatasetLoader(dataset_dir, "val", num_age_classes=num_age_classes)
     num_age_classes = train_loader.num_age_classes
 
     # Init model
     age_gender_model = ModelAgeGender(log=log_dir)
-    age_gender_model.init_model(model_name=model_name, widen_factor=widen_factor, num_age_classes=100)
+    age_gender_model.init_model(model_name=model_name, widen_factor=widen_factor, num_age_classes=num_age_classes)
 
     age_gender_model.load_dataset((train_loader, val_loader), batch_size=batch_size, num_workers=num_workers)
 
     # Train 5 epoch with freezed backbone
     age_gender_model.train(num_epochs=15, learning_rate=init_lr, freeze=True)
     # Then unfreeze all layers
-    age_gender_model.train(num_epochs=num_epochs-15, learning_rate=init_lr/10, freeze=True)
+    age_gender_model.train(num_epochs=num_epochs-15, learning_rate=init_lr/2, freeze=False)
 
     age_gender_model.save_model(model_name="last.pt")
     age_gender_model.writer.close()
@@ -61,6 +62,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_epochs", type=int, default=30, help="num epoch")
     parser.add_argument("--batch_size", type=int, default=2, help="batch size")
     parser.add_argument("--init_lr", type=float, default=0.002, help="Starting learning rate")
+    parser.add_argument("--num_age_classes", type=int, default=100, help="Number of age classes")
     parser.add_argument("--pretrained", type=str, default=None, help="Pretrained model path")
     parser.add_argument("--num_workers", type=int, default=8, help="Number of worker process data")
     args = parser.parse_args()

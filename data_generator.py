@@ -26,7 +26,7 @@ aug = iaa.Sequential([
         iaa.Sometimes(0.2, SpotLight())
     ]),
     iaa.Sometimes(0.025, iaa.PerspectiveTransform(scale=(0.01, 0.1), keep_size=True)),
-    iaa.Sometimes(0.2, 
+    iaa.Sometimes(0.1, 
         iaa.OneOf([
             iaa.GaussianBlur((0, 1.5)),
             iaa.AverageBlur(k=(3, 5)),
@@ -34,19 +34,19 @@ aug = iaa.Sequential([
             iaa.MotionBlur(k=(3, 7), angle=(-45, 45))
         ])
     ),
-    iaa.Sometimes(0.2, 
-        iaa.Affine(
-            scale=(0.001, 0.05),
-            translate_percent=(0.01),
-            rotate=(-10, 10),
-            shear=(-5, 5)
-        )    
-    )
+    # iaa.Sometimes(0.2, 
+    #     iaa.Affine(
+    #         scale=(0.001, 0.05),
+    #         translate_percent=(0.01),
+    #         rotate=(-10, 10),
+    #         shear=(-5, 5)
+    #     )    
+    # )
 ])
 
 class DatasetLoader(Dataset):
-    def __init__(self, dataDir, stage, batch_size=1, image_size=224):
-        self.num_age_classes = 100
+    def __init__(self, dataDir, stage, batch_size=1, image_size=224, num_age_classes=100):
+        self.num_age_classes = num_age_classes
         self.batch_size = batch_size
         self.image_size = image_size
         self.stage = stage
@@ -100,39 +100,10 @@ class DatasetLoader(Dataset):
 
 
     def age_to_cls(self, age):
-        if 0 <= age < 5:
-            age_cls = 0
-        elif 5 <= age < 10:
-            age_cls = 1
-        elif 10 <= age < 14:
-            age_cls = 2
-        elif 14 <= age < 18:
-            age_cls = 3
-        elif 18 <= age < 21:
-            age_cls = 4
-        elif 21 <= age < 25:
-            age_cls = 5
-        elif 25 <= age < 29:
-            age_cls = 6
-        elif 29 <= age < 34:
-            age_cls = 7
-        elif 34 <= age < 38:
-            age_cls = 8
-        elif 38 <= age < 42:
-            age_cls = 9
-        elif 42 <= age < 46:
-            age_cls = 10
-        elif 46 <= age < 50:
-            age_cls = 11
-        elif 50 <= age < 55:
-            age_cls = 12
-        elif 55 <= age < 60:
-            age_cls = 13
-        elif 60 <= age < 65:
-            age_cls = 14
-        elif 65 <= age:
-            age_cls = 15
-        return age_cls
+        if age < 80:
+            return age
+        else:
+            return 80
 
     def age_to_level(self, age):
         ''' Convert age to levels, for ordinary regression task
@@ -157,17 +128,23 @@ class DatasetLoader(Dataset):
         gender_count = [0]*2
         for image_path in data_imgs:
             image_name = image_path.name 
-            age = image_name.split("A")[1].split(".")[0].split("G")[0]
-            gender = image_name.split("A")[1].split(".")[0].split("G")[1]
+            # age = image_name.split("A")[1].split(".")[0].split("G")[0]
+            # gender = image_name.split("A")[1].split(".")[0].split("G")[1]
 
             # update load label for mega_age_gender dataset
-            # age = image_name.strip().split("_")[1].split("A")[1]
-            # gender = image_name.strip().split("_")[2][1]
+            age = image_name.strip().split("_")[1].split("A")[1]
+            gender = image_name.strip().split("_")[2][1]
 
-            # age_cls = self.age_to_cls(int(age))
+            # Convert age to class id from 0 to num_classes
+            age = self.age_to_cls(int(age))
+            # Convert age class id to level of age class id 
+            # e.g: 1 -> [1 0 ...], 0 -> [0 0 ...], 3 -> [1 1 1 0 ...]
             age_cls = self.age_to_level(int(age))
-            # age_cls = int(age)
+            
+            # Convert gender to class id
             gender_cls = int(gender)
+
+            # Statistic dataset
             age_count[int(age)] += 1
             gender_count[gender_cls] += 1
             labels = (age_cls, gender_cls)
@@ -175,6 +152,7 @@ class DatasetLoader(Dataset):
                 self.image_path_and_type.append([str(image_path), labels])
         logger.info("Dataset {} stage infomation".format(self.stage.upper()))
         logger.info("Number images: {}".format(len(self.image_path_and_type)))
+        logger.info("Number class age: {}".format(len(age_count)))
         logger.info("Class age {}".format(age_count))
         logger.info("Class gender {}".format(gender_count))
 
