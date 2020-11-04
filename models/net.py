@@ -104,7 +104,7 @@ class ModelAgeGender:
             train_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
             self.model.train()
             self.epoch_count += 1
-            for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(epoch)):
+            for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(self.epoch_count)):
                 image = image.to(self.device)                               
                 label_age, label_gender = label
                 # import ipdb; ipdb.set_trace()
@@ -142,9 +142,9 @@ class ModelAgeGender:
             loss_genders = loss_genders.item()/len(self.train_generator)
             running_loss = running_loss.item()/len(self.train_generator)
             # Write tensorboard
-            self.writer.add_scalar("Age_loss", loss_ages, epoch+1)
-            self.writer.add_scalar("Gender_loss", loss_genders, epoch+1)
-            self.writer.add_scalar("Train_loss", running_loss, epoch+1)
+            self.writer.add_scalar("Age_loss", loss_ages, self.epoch_count)
+            self.writer.add_scalar("Gender_loss", loss_genders, self.epoch_count)
+            self.writer.add_scalar("Train_loss", running_loss, self.epoch_count)
             
             # Evaluate
             mae_age, acc_gender, loss_age_val, loss_gender_val, val_loss = self._validate(epoch+1)
@@ -231,12 +231,12 @@ class ModelAgeGender:
             acc_gender = acc_gender/len(self.val_generator)
 
             # Write tensorboard
-            self.writer.add_scalar("MAE_age_validation", mae_age, epoch)
+            self.writer.add_scalar("MAE_age_validation", mae_age, self.epoch_count)
             # self.writer.add_scalar("MSE age validation". mse, epoch)
-            self.writer.add_scalar("Accuracy_gender_validation", acc_gender, epoch)
-            self.writer.add_scalar("Validation_age_loss", loss_ages, epoch)
-            self.writer.add_scalar("Validation_gender_loss", loss_genders, epoch)
-            self.writer.add_scalar("Validation_loss", val_losses, epoch)
+            self.writer.add_scalar("Accuracy_gender_validation", acc_gender, self.epoch_count)
+            self.writer.add_scalar("Validation_age_loss", loss_ages, self.epoch_count)
+            self.writer.add_scalar("Validation_gender_loss", loss_genders, self.epoch_count)
+            self.writer.add_scalar("Validation_loss", val_losses, self.epoch_count)
 
         return mae_age, acc_gender, loss_ages, loss_genders, val_losses
 
@@ -328,8 +328,10 @@ class ModelAgeGender:
         image = image.unsqueeze(0)
 
         age_score, age_prob, gender_prob = self.model(image)
+        # import ipdb; ipdb.set_trace()
         age_prob = torch.exp(age_prob)
         top_age_prob, top_age_class = age_prob.topk(1, dim=1)
+        # import ipdb; ipdb.set_trace()
         range_age = self.age_to_class(top_age_class)
 
         gender_prob = torch.exp(gender_prob)
@@ -338,6 +340,7 @@ class ModelAgeGender:
             gender = "Female"
         else:
             gender = "Male"
+        print(gender)
         return range_age, gender
 
         
