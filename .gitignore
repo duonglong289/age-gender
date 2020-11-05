@@ -16,3 +16,4 @@ logs*
 
 # Tensorboard
 runs
+weights

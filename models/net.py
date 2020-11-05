@@ -53,7 +53,7 @@ class ModelAgeGender:
         ''' Init model before training
         '''
         if model_name == "mobilenet_v2":
-            self.model = mobilenet_v2(pretrained=True, **kwargs)
+            self.model = mobilenet_v2(pretrained=pretrained, **kwargs)
         elif model_name == "mobilenet_v1":
             self.model = mobilenet_v1(**kwargs)
         else:
@@ -299,6 +299,7 @@ class ModelAgeGender:
         state_dict = torch.load(state_dict_path, map_location=self.device)
         self.model.eval().to(self.device)
         self.model.load_state_dict(state_dict)
+        return self.model
 
     def build_transform(self):
         PIXEL_MEAN = [0.5, 0.5, 0.5]
@@ -327,7 +328,7 @@ class ModelAgeGender:
         age_score, age_prob, gender_prob = self.model(image)
         # Predicted age
         prob_levels = age_prob > 0.5
-        predicted_labels = torch.sum(prob_levels, dim=1)
+        predicted_ages = torch.sum(prob_levels, dim=1)
         # Predicted gender
         gender_prob = torch.exp(gender_prob)
         top_gender_prob, top_gender_class = gender_prob.topk(1, dim=1)
@@ -336,7 +337,7 @@ class ModelAgeGender:
         else:
             gender = "Male"
         
-        return range_age, gender
+        return predicted_ages, gender
 
         
 

@@ -46,8 +46,8 @@ def demo_video(video_path=None):
     vid = cv2.VideoCapture(video_path)
     detector = RetinaNetDetector()
     estimator = ModelAgeGender()
-    estimator.init_model("mobilenet_v2", num_age_classes=16)
-    estimator.load_statedict("weights/statedict_01112020.pt")
+    estimator.init_model("mobilenet_v2", num_age_classes=81, widen_factor=0.25, pretrained=False)
+    estimator.load_statedict("weights/mb0.25_aug.pt")
 
     while True:
         ret, frame = vid.read()
@@ -75,8 +75,8 @@ def demo_video(video_path=None):
 def demo_image(image_path):
     detector = RetinaNetDetector()
     estimator = ModelAgeGender()
-    estimator.init_model("mobilenet_v2", num_age_classes=16)
-    estimator.load_statedict("weights/statedict_01112020.pt")
+    estimator.init_model("mobilenet_v2", num_age_classes=81, widen_factor=0.25)
+    estimator.load_statedict("weights/ordinal_regression_04112020.pt")
 
     frame = cv2.imread(image_path)
 
