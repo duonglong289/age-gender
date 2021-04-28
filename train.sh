@@ -1,7 +1,7 @@
 python3 train.py \
     --model_name=mobilenet_v2 \
     --widen_factor=1 \
-    --dataset=dataset/mega_age_gender_all_faces \
+    --dataset=dataset/small_data \
     --num_epochs=50 \
     --batch_size=128 \
     --init_lr=0.002 \

@@ -14,12 +14,12 @@ def to_numpy(tensor):
 
 if __name__ == "__main__":
     model = ModelAgeGender()
-    model.init_model("mobilenet_v2", num_age_classes=81)
-    estimator = model.load_statedict("weights/orinal_regression_04112020.pt")
+    model.init_model("mobilenet_v2", num_age_classes=81, widen_factor=0.25,pretrained=False)
+    estimator = model.load_statedict("weights/36_0.8979109327926814_gender_5.966053009033203_age.pt")
     estimator.eval()
     temp_var = torch.rand(10, 3, 224, 224, requires_grad=True)
 
-    onnx_path = "weights/mbnetv2.onnx"
+    onnx_path = "weights/age_gender_mb0.25_08112020.onnx"
 
     torch_out = estimator(temp_var)
     torch.onnx.export(estimator,
@@ -36,8 +36,11 @@ if __name__ == "__main__":
                     })
     
     ort_session = onnxruntime.InferenceSession(onnx_path)
-
-    ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(temp_var)}
+    # print(to_numpy(temp_var).shape)
+    input_onx = to_numpy(temp_var)
+    
+    ort_inputs = {ort_session.get_inputs()[0].name: input_onx}
+    import ipdb; ipdb.set_trace()
     ort_outputs = ort_session.run(None, ort_inputs)
     print("Result model onnx: ", ort_outputs[0].shape)
     print("Result model torch: ", len(torch_out))
