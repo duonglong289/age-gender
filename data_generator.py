@@ -99,6 +99,7 @@ class DatasetLoader(Dataset):
 
 
     def age_to_cls(self, age):
+        global age_cls
         if 0 <= age < 5:
             age_cls = 0
         elif 5 <= age < 10:
@@ -172,6 +173,6 @@ class DatasetLoader(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = DatasetLoader("dataset/small_data", "val")
-    dataset = DatasetLoader("dataset/small_data", "val")
+    dataset = DatasetLoader("dataset/last_face_age_gender", "val")
+    dataset = DatasetLoader("dataset/last_face_age_gender", "val")
     
