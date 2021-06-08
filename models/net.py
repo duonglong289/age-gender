@@ -22,7 +22,7 @@ from tensorboardX import SummaryWriter
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 A_cost = CoralCost(num_classes=16, imp_weights=0.05)
-G_cost = CoralCost() 
+G_cost = CoralCost(num_classes=2) 
 
 
 class ModelAgeGender:
@@ -157,14 +157,14 @@ class ModelAgeGender:
             # Monitor
             if verbose:
                 logger.info(f"Epoch {self.epoch_count}: \
-                        - Loss age train: {loss_ages} \
-                        - Loss gender train: {loss_genders} \
-                        - Loss train: {running_loss} \
-                        - Loss age val: {loss_age_val} \
-                        - Loss gender val: {loss_gender_val} \
-                        - Loss val: {val_loss} \
-                        - MAE age: {mae_age} \
-                        - Acc gender: {acc_gender}" \
+                        \n- Loss age train: {loss_ages} \
+                        \n- Loss gender train: {loss_genders} \
+                        \n- Loss train: {running_loss} \
+                        \n- Loss age val: {loss_age_val} \
+                        \n- Loss gender val: {loss_gender_val} \
+                        \n- Loss val: {val_loss} \
+                        \n- MAE age: {mae_age} \
+                        \n- Acc gender: {acc_gender}" \
                     )
             
             # Save model
