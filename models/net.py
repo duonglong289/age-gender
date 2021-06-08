@@ -15,12 +15,14 @@ import torch.nn as nn
 import torchvision.transforms as T
 
 import models.metrics as metrics
-import models.cost_fn as cost_fn
+from models.cost_fn import CoralCost
 
 from tensorboardX import SummaryWriter
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
+A_cost = CoralCost(num_classes=16, imp_weights=0.05)
+G_cost = CoralCost() 
 
 
 class ModelAgeGender:
@@ -44,9 +46,12 @@ class ModelAgeGender:
         return self.model.__repr__()
 
 
-    def _init_param(self, learning_rate=0.002):
+    def _init_optim(self, grad = 'Adam', learning_rate=0.002):
         w_decay = 0.005
-        self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+        if grad == 'Adam':
+            self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+        else:
+            self.optimizer = optim.SGD(self.model.parameters(), lr=learning_rate, momentum=0.9, )
         
 
     def init_model(self, model_name="mobilenet_v2", pretrained=True, **kwargs):
@@ -78,9 +83,10 @@ class ModelAgeGender:
         # self.val_generator = DatasetLoader(dataset_dir, "val")
         self.val_generator = torch.utils.data.DataLoader(val_loader, **params)
 
+
     
     def train(self, num_epochs, learning_rate, freeze=False, verbose=True):
-        self._init_param(learning_rate)
+        self._init_optim(learning_rate)
         # Freeze backbone
         if freeze:
             # Freeze all layers
@@ -96,7 +102,9 @@ class ModelAgeGender:
         # Unfreeze all layers
         else:
             for params in self.model.parameters():
-                params.requires_grad = True      
+                params.requires_grad = True 
+
+
 
         # Train mode
         for epoch in range(num_epochs):
@@ -104,7 +112,7 @@ class ModelAgeGender:
             train_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
             self.model.train()
             self.epoch_count += 1
-            for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(epoch)):
+            for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(self.epoch_count)):
                 image = image.to(self.device)                               
                 label_age, label_gender = label
                 label_age = torch.LongTensor(label_age).to(self.device)
@@ -114,16 +122,16 @@ class ModelAgeGender:
 
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
-                    loss_age = cost_fn.cost_nll(pred_age, label_age)               
-                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
+                    loss_age = A_cost.cost_coral(pred_age, label_age)               
+                    loss_gender = G_cost.cost_coral(pred_gender, label_gender)       
                     train_loss = loss_age + loss_gender
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
-                    loss_age = cost_fn.cost_nll(pred_age, label_age)                    
+                    loss_age = A_cost.cost_coral(pred_age, label_age)                    
                     train_loss = loss_age
                 else:
                     pred_gender = output
-                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)
+                    loss_gender = G_cost.cost_coral(pred_gender, label_gender)
                     train_loss = loss_gender
 
                 self.optimizer.zero_grad()
@@ -183,18 +191,18 @@ class ModelAgeGender:
 
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
-                    loss_age = cost_fn.cost_nll(pred_age, label_age)               
-                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
+                    loss_age = A_cost.cost_coral(pred_age, label_age)               
+                    loss_gender = G_cost.cost_coral(pred_gender, label_gender)       
                     val_loss = loss_age + loss_gender
 
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
-                    loss_age = cost_fn.cost_nll(pred_age, label_age)                    
+                    loss_age = A_cost.cost_coral(pred_age, label_age)                    
                     val_loss = loss_age
 
                 else:
                     pred_gender = output
-                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
+                    loss_gender = G_cost.cost_coral(pred_gender, label_gender)       
                     val_loss = loss_gender
 
                 loss_ages += loss_age.item()
@@ -241,36 +249,36 @@ class ModelAgeGender:
         level = [1]*age + [0]*[NUM_AGE_CLASSES - 1 - age]
         return level
 
-    def age_to_class(self, age):
-        if age == 0:
+    def age_to_class(self, age_cls):
+        if age_cls == 0:
             return "[0-5]"
-        elif age == 1:
+        elif age_cls == 1:
             return "[5-10]"
-        elif age == 2:
+        elif age_cls == 2:
             return "[10-14]"
-        elif age == 3:
+        elif age_cls == 3:
             return "[14-18]"
-        elif age == 4:
+        elif age_cls == 4:
             return "[18-21]"
-        elif age == 5:
+        elif age_cls == 5:
             return "[21-25]"
-        elif age == 6:
+        elif age_cls == 6:
             return "[25-29]"
-        elif age == 7:
+        elif age_cls == 7:
             return "[29-34]"
-        elif age == 8:
+        elif age_cls == 8:
             return "[34-38]"
-        elif age == 9:
+        elif age_cls == 9:
             return "[38-42]"
-        elif age == 10:
+        elif age_cls == 10:
             return "[42-46]"
-        elif age == 11:
+        elif age_cls == 11:
             return "[46-50]"
-        elif age == 12:
+        elif age_cls == 12:
             return "[50-55]"
-        elif age == 13:
+        elif age_cls == 13:
             return "[55-60]"
-        elif age == 14:
+        elif age_cls == 14:
             return "[60-65]"
         else:
             return "[>65]"
@@ -298,8 +306,9 @@ class ModelAgeGender:
         self.model.load_state_dict(state_dict)
 
     def build_transform(self):
-        PIXEL_MEAN = [0.5, 0.5, 0.5]
-        PIXEL_STD =[0.5, 0.5, 0.5]
+        #(0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
+        PIXEL_MEAN = [0.485, 0.456, 0.406]
+        PIXEL_STD =[0.229, 0.224, 0.225]
         normalize_transform = T.Normalize(mean=PIXEL_MEAN, std=PIXEL_STD)
         
         transform = T.Compose([

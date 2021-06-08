@@ -11,7 +11,7 @@ import torchvision.transforms as T
 def main():
     model = ModelAgeGender()
     model.init_model()
-    model.device = torch.device("cpu")
+    model.device = torch.device("cuda")
     # state_dict = torch.load(torch.load(state_dict_path), map_location=self.device)
     state_dict_path = "./logs/2_0.5528364550499689_gender_197.11904907226562_age.pt"
     # model.model.load_state_dict(torch.load(state_dict_path), strict=False)

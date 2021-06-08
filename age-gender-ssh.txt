@@ -1,0 +1,14 @@
+git clone https://github.com/duonglong289/age-gender
+    michealtiat 
+    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
+
+rclone config
+    4/1AY0e-g7ZFcMUbtLZrYB_uON0X7_Kot_syEAAV1WG-r9LO1aDs43T8Sdrres
+rclone copy hai:/data ./age-gender 
+mv ./age-gender/age-gender ./age-gender/dataset
+cd ./age-gender/dataset
+unzip small_data.zip
+tar -xf last
+tar -xf mega_
+tar -xf megaa
+pip3 install tensorboardX
