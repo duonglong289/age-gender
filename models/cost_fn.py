@@ -36,16 +36,13 @@ class CoralCost:
         self.imp_weights = imp_weights
 
     def cost_coral(self, predicted, groundtruth):
-        if self.num_classes:
-            if not self.imp_weights:
-                imp = torch.ones(self.num_classes)
-            else:
-                imp = torch.Tensor([self.imp_weights]*self.num_classes)
-        else:
-            if not self.imp_weights:
-                imp = 1;
-            else: 
-                imp = self.imp_weights
-        val = (-torch.sum((F.log_sigmoid(predicted)*groundtruth
-                        + (F.log_sigmoid(predicted) - groundtruth)*(1-groundtruth))*imp, dim=1))
+        imp = self.imp_weights
+        if self.imp_weights is None:
+            imp = 1
+        #predicted = torch.max(predicted, dim=1).values
+        new_gt = torch.zeros(predicted.shape, device='cuda')
+        for i in range(predicted.shape[0]):
+            new_gt[i][groundtruth[i]] = 1
+        val = (-torch.sum((F.logsigmoid(predicted)*new_gt
+                        + (F.logsigmoid(predicted) - new_gt)*(1-new_gt))*imp, dim=1))
         return torch.mean(val)            

@@ -21,8 +21,8 @@ from tensorboardX import SummaryWriter
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
-A_cost = CoralCost(num_classes=16, imp_weights=0.05)
-G_cost = CoralCost(num_classes=2) 
+A_cost = CoralCost(imp_weights=0.001)
+G_cost = CoralCost(imp_weights=0.0005) 
 
 
 class ModelAgeGender:
@@ -115,10 +115,13 @@ class ModelAgeGender:
             for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(self.epoch_count)):
                 image = image.to(self.device)                               
                 label_age, label_gender = label
+                
                 label_age = torch.LongTensor(label_age).to(self.device)
                 label_gender = torch.LongTensor(label_gender).to(self.device)
-    
+              
+
                 output = self.model(image)
+                #print(f"====================== output shape: {output.shape} =========================")
 
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
@@ -127,10 +130,12 @@ class ModelAgeGender:
                     train_loss = loss_age + loss_gender
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
+
                     loss_age = A_cost.cost_coral(pred_age, label_age)                    
                     train_loss = loss_age
                 else:
                     pred_gender = output
+
                     loss_gender = G_cost.cost_coral(pred_gender, label_gender)
                     train_loss = loss_gender
 
