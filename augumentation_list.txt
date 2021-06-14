@@ -1,0 +1,16 @@
+ParallelLight
+SpotLight
+OverLayImage
+OverLayImageMask
+OverLayImageVbpl
+LightFlare
+WarpTexture
+AddCrapyStamp
+AddCrapyStampCRAFT
+BlobAndShadow
+SimpleOverlayImage
+RandomLine
+MimicRotateBound
+random_blobs
+OverLayMultipleImage
+OverlayImages

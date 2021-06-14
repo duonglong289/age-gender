@@ -11,9 +11,3 @@ def compute_mae_mse(predicted_age, target_age):
     # mse = torch.sum((predicted_age - target_age)**2)
     # return mae, mse           
     return mae
-if __name__ == '__main__':
-    num_classes = 15    
-    predicted_age = torch.rand(15)
-    target_age = torch.Tensor([1]*10 + [0]*5)
-    mae = compute_mae_mse(predicted_age, target_age)
-    print(mae)

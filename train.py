@@ -15,6 +15,7 @@ import torchvision.transforms as transforms
 from data_generator import DatasetLoader
 
 from tensorboardX import SummaryWriter
+from clearml import Task 
 
 from models.net import ModelAgeGender
 
@@ -65,4 +66,6 @@ if __name__ == "__main__":
     parser.add_argument("--num_workers", type=int, default=8, help="Number of worker process data")
     args = parser.parse_args()
 
+    task = Task.init(project_name='age-gender', task_name='Test Coralcost performance')
+    
     train(args)

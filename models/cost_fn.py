@@ -43,6 +43,6 @@ class CoralCost:
         new_gt = torch.zeros(predicted.shape, device='cuda')
         for i in range(predicted.shape[0]):
             new_gt[i][groundtruth[i]] = 1
-        val = (-torch.sum((F.logsigmoid(predicted)*new_gt
-                        + (F.logsigmoid(predicted) - new_gt)*(1-new_gt))*imp, dim=1))
+        val = (-torch.sum((F.logsigmoid(predicted)*new_gt*imp
+                        + (F.logsigmoid(1 - predicted))*(1-new_gt)), dim=1))
         return torch.mean(val)            

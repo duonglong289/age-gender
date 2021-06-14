@@ -55,7 +55,6 @@ class DatasetLoader(Dataset):
 
         self.image_num = len(self.image_path_and_type)
         self.indices = np.random.permutation(self.image_num)
-        self.num_age_classes = 16
         
 
     def __len__(self):
@@ -69,6 +68,11 @@ class DatasetLoader(Dataset):
         img = cv2.imread(image_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         age, gender = label
+        age = torch.Tensor([1]*age + [0]*(99 - age))
+        empty = torch.Tensor([0, 0])
+        empty[gender] = 1
+        gender = empty 
+            
         # try:
         #     img = aug.augment(image=img)
         # except:
@@ -99,6 +103,7 @@ class DatasetLoader(Dataset):
 
 
     def age_to_cls(self, age):
+        global age_cls
         if 0 <= age < 5:
             age_cls = 0
         elif 5 <= age < 10:
@@ -135,6 +140,7 @@ class DatasetLoader(Dataset):
 
 
     def _load_dataset(self, dataDir):  
+        global age_cls
         random.seed(42)
 
         image_dir = Path(dataDir)

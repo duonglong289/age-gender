@@ -15,14 +15,14 @@ import torch.nn as nn
 import torchvision.transforms as T
 
 import models.metrics as metrics
-from models.cost_fn import CoralCost
+from models import cost_fn
 
 from tensorboardX import SummaryWriter
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
-A_cost = CoralCost(imp_weights=0.001)
-G_cost = CoralCost(imp_weights=0.0005) 
+A_cost = cost_fn.CoralCost(imp_weights=0.001)
+
 
 
 class ModelAgeGender:
@@ -46,12 +46,9 @@ class ModelAgeGender:
         return self.model.__repr__()
 
 
-    def _init_optim(self, grad = 'Adam', learning_rate=0.002):
+    def _init_optim(self, learning_rate=0.002):
         w_decay = 0.005
-        if grad == 'Adam':
-            self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
-        else:
-            self.optimizer = optim.SGD(self.model.parameters(), lr=learning_rate, momentum=0.9, )
+        self.optimizer = optim.SGD(self.model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=w_decay)
         
 
     def init_model(self, model_name="mobilenet_v2", pretrained=True, **kwargs):
@@ -125,18 +122,18 @@ class ModelAgeGender:
 
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
-                    loss_age = A_cost.cost_coral(pred_age, label_age)               
-                    loss_gender = G_cost.cost_coral(pred_gender, label_gender)       
+                    loss_age = A_cost.cost_coral(score_age, label_age)               
+                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
                     train_loss = loss_age + loss_gender
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
 
-                    loss_age = A_cost.cost_coral(pred_age, label_age)                    
+                    loss_age = A_cost.cost_coral(score_age, label_age)                    
                     train_loss = loss_age
                 else:
                     pred_gender = output
 
-                    loss_gender = G_cost.cost_coral(pred_gender, label_gender)
+                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)
                     train_loss = loss_gender
 
                 self.optimizer.zero_grad()
@@ -196,18 +193,18 @@ class ModelAgeGender:
 
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
-                    loss_age = A_cost.cost_coral(pred_age, label_age)               
-                    loss_gender = G_cost.cost_coral(pred_gender, label_gender)       
+                    loss_age = A_cost.cost_coral(score_age, label_age)               
+                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
                     val_loss = loss_age + loss_gender
 
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
-                    loss_age = A_cost.cost_coral(pred_age, label_age)                    
+                    loss_age = A_cost.cost_coral(score_age, label_age)                    
                     val_loss = loss_age
 
                 else:
                     pred_gender = output
-                    loss_gender = G_cost.cost_coral(pred_gender, label_gender)       
+                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
                     val_loss = loss_gender
 
                 loss_ages += loss_age.item()
