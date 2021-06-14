@@ -66,6 +66,6 @@ if __name__ == "__main__":
     parser.add_argument("--num_workers", type=int, default=8, help="Number of worker process data")
     args = parser.parse_args()
 
-    task = Task.init(project_name='age-gender', task_name='Test Coralcost performance')
-    
+    #task = Task.init(project_name='age-gender', task_name='Test Coralcost performance')
+
     train(args)

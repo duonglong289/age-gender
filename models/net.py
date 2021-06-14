@@ -112,7 +112,7 @@ class ModelAgeGender:
             for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(self.epoch_count)):
                 image = image.to(self.device)                               
                 label_age, label_gender = label
-                
+                print(f"================ label_age: {label_age.shape}=================")
                 label_age = torch.LongTensor(label_age).to(self.device)
                 label_gender = torch.LongTensor(label_gender).to(self.device)
               
@@ -122,6 +122,7 @@ class ModelAgeGender:
 
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
+                    print(f"================= score_age: {score_age.shape} ===================")
                     loss_age = A_cost.cost_coral(score_age, label_age)               
                     loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
                     train_loss = loss_age + loss_gender
@@ -213,7 +214,10 @@ class ModelAgeGender:
 
                 # compute mae and mse with age label
                 if self.age_classifier:
-                    mae = metrics.compute_mae_mse(pred_age.topk(1, dim=1)[1], label_age)
+                    mae = metrics.compute_mae_mse(
+                        torch.sum((pred_age > 0.8).type(torch.int), dim=1), 
+                        torch.sum(label_age, dim=1)
+                    )
                     mae_age += mae
                     # mse_age += mse
 

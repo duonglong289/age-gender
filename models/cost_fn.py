@@ -25,6 +25,7 @@ def cost_ce(predicted, groundtruth):
 def cost_nll(predicted, groundtruth):
     '''Compute negative log-likelihood loss
     '''
+    print(groundtruth.shape)
     loss = nn.NLLLoss()
     cost = loss(predicted, groundtruth)
     return cost
@@ -40,9 +41,11 @@ class CoralCost:
         if self.imp_weights is None:
             imp = 1
         #predicted = torch.max(predicted, dim=1).values
+        '''
         new_gt = torch.zeros(predicted.shape, device='cuda')
         for i in range(predicted.shape[0]):
             new_gt[i][groundtruth[i]] = 1
-        val = (-torch.sum((F.logsigmoid(predicted)*new_gt*imp
-                        + (F.logsigmoid(1 - predicted))*(1-new_gt)), dim=1))
+        '''
+        val = (-torch.sum((F.logsigmoid(predicted)*groundtruth*imp
+                        + (F.logsigmoid(1 - predicted))*(1-groundtruth)), dim=1))
         return torch.mean(val)            
