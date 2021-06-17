@@ -17,14 +17,15 @@ import torchvision.transforms as T
 import models.metrics as metrics
 from models import cost_fn
 
+
 from tensorboardX import SummaryWriter
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
-A_cost = cost_fn.CoralCost(imp_weights=0.001)
 
 
 
+A_cost = cost_fn.CoralCost(num_classes=16, imp_weights=0.25)
 class ModelAgeGender:
     def __init__(self, device="cuda", log="./log", **kwargs):
         if os.path.isdir(log):
@@ -55,7 +56,7 @@ class ModelAgeGender:
         ''' Init model before training
         '''
         if model_name == "mobilenet_v2":
-            self.model = mobilenet_v2(pretrained=True, **kwargs)
+            self.model = mobilenet_v2(pretrained=False, **kwargs)
         elif model_name == "mobilenet_v1":
             self.model = mobilenet_v1(**kwargs)
         else:
@@ -80,8 +81,6 @@ class ModelAgeGender:
         # self.val_generator = DatasetLoader(dataset_dir, "val")
         self.val_generator = torch.utils.data.DataLoader(val_loader, **params)
 
-
-    
     def train(self, num_epochs, learning_rate, freeze=False, verbose=True):
         self._init_optim(learning_rate)
         # Freeze backbone
@@ -109,22 +108,21 @@ class ModelAgeGender:
             train_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
             self.model.train()
             self.epoch_count += 1
+            
             for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(self.epoch_count)):
                 image = image.to(self.device)                               
                 label_age, label_gender = label
-                print(f"================ label_age: {label_age.shape}=================")
+                
                 label_age = torch.LongTensor(label_age).to(self.device)
                 label_gender = torch.LongTensor(label_gender).to(self.device)
               
 
                 output = self.model(image)
-                #print(f"====================== output shape: {output.shape} =========================")
 
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
-                    print(f"================= score_age: {score_age.shape} ===================")
                     loss_age = A_cost.cost_coral(score_age, label_age)               
-                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
+                    loss_gender = cost_fn.cost_ce(pred_gender, label_gender)       
                     train_loss = loss_age + loss_gender
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
@@ -134,7 +132,7 @@ class ModelAgeGender:
                 else:
                     pred_gender = output
 
-                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)
+                    loss_gender = cost_fn.cost_ce(pred_gender, label_gender)
                     train_loss = loss_gender
 
                 self.optimizer.zero_grad()
@@ -195,7 +193,7 @@ class ModelAgeGender:
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
                     loss_age = A_cost.cost_coral(score_age, label_age)               
-                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
+                    loss_gender = cost_fn.cost_ce(pred_gender, label_gender)       
                     val_loss = loss_age + loss_gender
 
                 elif self.age_classifier and not self.gender_classifier:
@@ -205,7 +203,7 @@ class ModelAgeGender:
 
                 else:
                     pred_gender = output
-                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
+                    loss_gender = cost_fn.cost_ce(pred_gender, label_gender)       
                     val_loss = loss_gender
 
                 loss_ages += loss_age.item()
@@ -214,8 +212,9 @@ class ModelAgeGender:
 
                 # compute mae and mse with age label
                 if self.age_classifier:
+
                     mae = metrics.compute_mae_mse(
-                        torch.sum((pred_age > 0.8).type(torch.int), dim=1), 
+                        torch.sum((pred_age > 0.6).type(torch.int), dim=1), 
                         torch.sum(label_age, dim=1)
                     )
                     mae_age += mae
@@ -313,8 +312,8 @@ class ModelAgeGender:
 
     def build_transform(self):
         #(0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
-        PIXEL_MEAN = [0.485, 0.456, 0.406]
-        PIXEL_STD =[0.229, 0.224, 0.225]
+        PIXEL_MEAN = [0.5, 0.5, 0.5]
+        PIXEL_STD =[0.5, 0.5, 0.5]
         normalize_transform = T.Normalize(mean=PIXEL_MEAN, std=PIXEL_STD)
         
         transform = T.Compose([

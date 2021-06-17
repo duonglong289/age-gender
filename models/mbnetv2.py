@@ -246,7 +246,7 @@ def mobilenet_v2(pretrained: bool = False, **kwargs: Any) -> MobileNetV2:
     """
     model = MobileNetV2(
         widen_factor=kwargs.get('widen_factor', 1.0),
-        num_age_classes=kwargs.get('num_age_classes', 100),
+        num_age_classes=kwargs.get('num_age_classes', 16),
         num_gender_classes=kwargs.get('num_gender_classes', 2)
     )
 

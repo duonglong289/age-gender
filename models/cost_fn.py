@@ -25,7 +25,7 @@ def cost_ce(predicted, groundtruth):
 def cost_nll(predicted, groundtruth):
     '''Compute negative log-likelihood loss
     '''
-    print(groundtruth.shape)
+    #print(groundtruth.shape)
     loss = nn.NLLLoss()
     cost = loss(predicted, groundtruth)
     return cost

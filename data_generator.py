@@ -8,6 +8,7 @@ import logging
 from PIL import Image
 import cv2
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 
 import torch 
@@ -68,7 +69,7 @@ class DatasetLoader(Dataset):
         img = cv2.imread(image_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         age, gender = label
-        age = [1]*age + [0]*(100 - age)
+        age = [1]*age + [0]*(self.num_age_classes - age)
         age = torch.LongTensor(age)
 
             
@@ -79,27 +80,38 @@ class DatasetLoader(Dataset):
                 
         image = Image.fromarray(img)
         X = self.transform_data(image)
+        #X = image
+        #X = self.data_augumentation(X)
         y = (age, gender)
         return X, y
     
 
     def build_transforms(self, PIXEL_MEAN = [0.5, 0.5, 0.5], PIXEL_STD =[0.5, 0.5, 0.5]):
         normalize_transform = T.Normalize(mean=PIXEL_MEAN, std=PIXEL_STD)
+        
         if self.stage=="train":
             transform = T.Compose([
                     T.Resize([self.image_size,self.image_size], Image.BICUBIC),
+                    #T.Resize([self.image_size,self.image_size]),
                     T.ColorJitter(brightness=(0.8, 1.2)),
                     T.RandomHorizontalFlip(),
                     T.ToTensor(),
                     normalize_transform])
+            
         else:
             transform = T.Compose([
                     T.Resize([self.image_size,self.image_size]),
                     T.ToTensor(),
                     normalize_transform])
+        
 
         return transform
-
+    '''
+    def data_augumentation(self, image):
+        if self.stage == "train":
+            aug_img = LightFlare().augment_image(image)
+        return aug_img
+    '''
 
     def age_to_cls(self, age):
         global age_cls
@@ -177,6 +189,26 @@ class DatasetLoader(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = DatasetLoader("dataset/small_data", "val")
-    dataset = DatasetLoader("dataset/small_data", "val")
+    dataset = DatasetLoader("./dataset/last_face_age_gender", "train")
+    #dataset = DatasetLoader("dataset/small_data", "val")
+    def convert_gender_to_string(gender):
+        if gender:
+            return "Male"
+        return "Female"
+
+    plt.figure(figsize=(30,30))
+    for i in range(9):
+        image, label = dataset[i + 100]
+        age, gender = label
+        gender = convert_gender_to_string(gender)
+        plt.subplot(3, 3, i + 1)
+        #age = torch.sum(age).item()
+        image = image.reshape(224, 224, 3)
+        plt.imshow(image.numpy())
+        plt.title(f"age: {age}\ngender: {gender}")
+        plt.axis("off")
+    plt.show()
+
+
+        
     
