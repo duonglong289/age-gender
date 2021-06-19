@@ -128,12 +128,12 @@ class DatasetLoader(Dataset):
         gender_count = [0]*2
         for image_path in data_imgs:
             image_name = image_path.name 
-            age = image_name.split("A")[1].split(".")[0].split("G")[0]
-            gender = image_name.split("A")[1].split(".")[0].split("G")[1]
+            #age = image_name.split("A")[1].split(".")[0].split("G")[0]
+            #gender = image_name.split("A")[1].split(".")[0].split("G")[1]
 
             # update load label for mega_age_gender dataset
-            # age = image_name.strip().split("_")[1].split("A")[1]
-            # gender = image_name.strip().split("_")[2][1]
+            age = image_name.strip().split("_")[1].split("A")[1]
+            gender = image_name.strip().split("_")[2][1]
 
             # Convert age to class id from 0 to num_classes
             age = self.age_to_cls(int(age))
