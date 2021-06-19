@@ -326,7 +326,7 @@ class ModelAgeGender:
         image = image.unsqueeze(0)
 
         age_score, age_prob, gender_prob = self.model(image)
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
         # Predicted age
         prob_levels = age_prob > 0.5
         predicted_ages = torch.sum(prob_levels, dim=1)
