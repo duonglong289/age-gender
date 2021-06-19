@@ -1,4 +1,4 @@
-mlchain-python==0.1.8rc1
+#mlchain-python==0.1.8rc1
 torch>=1.5
 torchvision>=0.6.0
 opencv-python
@@ -8,3 +8,5 @@ imgaug
 imutils
 clearml
 tensorboardX
+numpy 
+matplotlib 
