@@ -44,7 +44,7 @@ class ModelAgeGender:
         return self.model.__repr__()
 
 
-    def _init_param(self, learning_rate=0.000125):
+    def _init_param(self, learning_rate=0.002):
         w_decay = 0.005
         self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
         

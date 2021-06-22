@@ -3,8 +3,8 @@ python3 train.py \
     --widen_factor=1 \
     --dataset=dataset/last_face_age_gender \
     --num_epochs=50 \
-    --batch_size=64 \
-    --init_lr=0.000125 \
+    --batch_size=128 \
+    --init_lr=0.002 \
     --num_workers=8 \
     --logs="./logs/log_" \
-    --num_age_classes=81
+    --num_age_classes=81 \
