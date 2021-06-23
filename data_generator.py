@@ -5,10 +5,11 @@ import imgaug.augmenters as iaa
 import imgaug as ia 
 import random
 import logging
+from tqdm import tqdm
 from PIL import Image
 import cv2
 from pathlib import Path
-
+import pandas as pd
 
 import torch 
 import torchvision.transforms as transforms
@@ -53,7 +54,7 @@ class DatasetLoader(Dataset):
         self.image_path_and_type = []
         self._load_dataset(dataDir)
         self.transform_data =  self.build_transforms()
-
+    
         self.image_num = len(self.image_path_and_type)
         self.indices = np.random.permutation(self.image_num)
         
@@ -70,6 +71,7 @@ class DatasetLoader(Dataset):
         img = cv2.imread(image_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         age, gender = label
+        age = torch.LongTensor(age)
         # try:
         #     img = aug.augment(image=img)
         # except:
@@ -128,12 +130,12 @@ class DatasetLoader(Dataset):
         gender_count = [0]*2
         for image_path in data_imgs:
             image_name = image_path.name 
-            #age = image_name.split("A")[1].split(".")[0].split("G")[0]
-            #gender = image_name.split("A")[1].split(".")[0].split("G")[1]
+            age = image_name.split("A")[1].split(".")[0].split("G")[0]
+            gender = image_name.split("A")[1].split(".")[0].split("G")[1]
 
             # update load label for mega_age_gender dataset
-            age = image_name.strip().split("_")[1].split("A")[1]
-            gender = image_name.strip().split("_")[2][1]
+            #age = image_name.strip().split("_")[1].split("A")[1]
+            #gender = image_name.strip().split("_")[2][1]
 
             # Convert age to class id from 0 to num_classes
             age = self.age_to_cls(int(age))
@@ -159,6 +161,28 @@ class DatasetLoader(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = DatasetLoader("dataset/small_data", "val")
-    dataset = DatasetLoader("dataset/small_data", "val")
+    device = torch.device("cuda")
+    dataset = DatasetLoader("dataset/small_data", "train")
+    data_generator = torch.utils.data.DataLoader(dataset, num_workers=8, shuffle=False)
+    path, Image_shape, Age, Gender = [], [], [], []
+    for idx, data in tqdm(enumerate(data_generator)):
+        img, label = data 
+        img = img.to(device) 
+        age, gender = label
+        image_path, _ = dataset.image_path_and_type[idx]
+        age = torch.LongTensor(age)
+        age = age.to(device)
+        path.append(os.path.basename(image_path))
+        Image_shape.append(img.shape)
+        Age.append(age.shape)
+        Gender.append(gender)
+    dict = {'path': path,
+            'Image': Image_shape,
+            'Age': Age,
+            'Gender': Gender}
+    df = pd.DataFrame(dict)
+    df.to_csv("./train_dataset.csv")
+
+
+
     
