@@ -138,13 +138,13 @@ class DatasetLoader(Dataset):
             gender = image_name.strip().split("_")[2][1]
 
             # Convert age to class id from 0 to num_classes
-            age = self.age_to_cls(int(age))
+            age = self.age_to_cls(abs(int(age)))
             # Convert age class id to level of age class id 
             # e.g: 1 -> [1 0 ...], 0 -> [0 0 ...], 3 -> [1 1 1 0 ...]
             age_cls = self.age_to_level(int(age))
             
             # Convert gender to class id
-            gender_cls = int(gender)
+            gender_cls = abs(int(gender))
 
             # Statistic dataset
             age_count[int(age)] += 1
