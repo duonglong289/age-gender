@@ -6,6 +6,7 @@ import os
 from models.mbnetv2 import mobilenet_v2
 import logging
 from datetime import datetime
+fr
 
 import torch
 import torch.optim as optim
@@ -38,7 +39,7 @@ def train(args):
 
     # Init model
     age_gender_model = ModelAgeGender(log=log_dir)
-    age_gender_model.init_model(model_name=model_name, widen_factor=widen_factor, num_age_classes=None)
+    age_gender_model.init_model(model_name=model_name, widen_factor=widen_factor, num_age_classes=16)
 
     age_gender_model.load_dataset((train_loader, val_loader), batch_size=batch_size, num_workers=num_workers)
 
@@ -64,5 +65,7 @@ if __name__ == "__main__":
     parser.add_argument("--pretrained", type=str, default=None, help="Pretrained model path")
     parser.add_argument("--num_workers", type=int, default=8, help="Number of worker process data")
     args = parser.parse_args()
+    
+    task = Task.init(project_name='age-gender', task_name="genos's mcode check", reuse_last_task_id=False)
 
     train(args)
