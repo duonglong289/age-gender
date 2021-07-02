@@ -45,9 +45,9 @@ def train(args):
     age_gender_model.load_dataset((train_loader, val_loader), batch_size=batch_size, num_workers=num_workers)
 
     # Train 5 epoch with freezed backbone
-    age_gender_model.train(num_epochs=10, learning_rate=init_lr, freeze=True)
+    age_gender_model.train(num_epochs=5, learning_rate=init_lr, freeze=True)
     # Then unfreeze all layers
-    age_gender_model.train(num_epochs=num_epochs-10, learning_rate=init_lr/2, freeze=False)
+    age_gender_model.train(num_epochs=num_epochs-5, learning_rate=init_lr/2, freeze=False)
 
     age_gender_model.save_model(model_name="last.pt")
     age_gender_model.writer.close()
