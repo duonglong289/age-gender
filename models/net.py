@@ -17,7 +17,7 @@ import torchvision.transforms as T
 
 import models.metrics as metrics
 from models import cost_fn
-from models.plot_confusion_matrix import plot_confusion_matrix
+
 
 
 from tensorboardX import SummaryWriter
