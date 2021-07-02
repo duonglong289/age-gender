@@ -31,7 +31,7 @@ def cost_nll(predicted, groundtruth):
     return cost
 
 class CoralCost:
-    def __init__(self, num_classes=None, imp_weights=None):
+    def __init__(self, num_classes=16, imp_weights=0.001):
         super().__init__()
         self.num_classes = num_classes
         self.imp_weights = imp_weights
@@ -40,12 +40,7 @@ class CoralCost:
         imp = self.imp_weights
         if self.imp_weights is None:
             imp = 1
-        #predicted = torch.max(predicted, dim=1).values
-        '''
-        new_gt = torch.zeros(predicted.shape, device='cuda')
-        for i in range(predicted.shape[0]):
-            new_gt[i][groundtruth[i]] = 1
-        '''
+
         val = (-torch.sum((F.logsigmoid(predicted)*groundtruth*imp
                         + (F.logsigmoid(1 - predicted))*(1-groundtruth)), dim=1))
-        return torch.mean(val)            
+        return torch.mean(val)        

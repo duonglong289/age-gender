@@ -1,4 +1,5 @@
 import numpy as np 
+import matplotlib.pyplot as plt
 import random
 import cv2
 from PIL import Image
@@ -16,18 +17,20 @@ import torchvision.transforms as T
 
 import models.metrics as metrics
 from models import cost_fn
+from models.plot_confusion_matrix import plot_confusion_matrix
 
 
 from tensorboardX import SummaryWriter
+from clearml import Task, Logger
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 
 
 
-A_cost = cost_fn.CoralCost(num_classes=16, imp_weights=0.25)
+A_cost = cost_fn.CoralCost(num_classes=16, imp_weights=0.005)
 class ModelAgeGender:
-    def __init__(self, device="cuda", log="./log", **kwargs):
+    def __init__(self, device="cuda", log="./log",task_name=None,**kwargs):
         if os.path.isdir(log):
             now = datetime.now()
             now_str = now.strftime("%d%m%Y_%H%M%S")
@@ -40,6 +43,7 @@ class ModelAgeGender:
 
         self.transformer = self.build_transform()
         self.epoch_count = 0
+        self.task = Task.init(project_name="age-gender", task_name=task_name, reuse_last_task_id=False)
         self.writer = SummaryWriter()
         
 
@@ -47,9 +51,9 @@ class ModelAgeGender:
         return self.model.__repr__()
 
 
-    def _init_optim(self, learning_rate=0.000125):
+    def _init_optim(self, learning_rate=0.002):
         w_decay = 0.005
-        self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=w_decay)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
         
 
     def init_model(self, model_name="mobilenet_v2", pretrained=True, **kwargs):
@@ -78,7 +82,7 @@ class ModelAgeGender:
         train_loader, val_loader = data_loader
         # self.train_generator = DatasetLoader(dataset_dir, "train")
         self.train_generator = torch.utils.data.DataLoader(train_loader, **params)
-        # self.val_generator = DatasetLoader(dataset_dir, "val")
+        # self.val_gen = DatasetLoader(dataset_dir, "val")
         self.val_generator = torch.utils.data.DataLoader(val_loader, **params)
 
     def train(self, num_epochs, learning_rate, freeze=False, verbose=True):
@@ -100,7 +104,8 @@ class ModelAgeGender:
             for params in self.model.parameters():
                 params.requires_grad = True 
 
-
+        #Create Confusion Matrix 
+        
 
         # Train mode
         for epoch in range(num_epochs):
@@ -122,7 +127,7 @@ class ModelAgeGender:
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
                     loss_age = A_cost.cost_coral(score_age, label_age)               
-                    loss_gender = cost_fn.cost_ce(pred_gender, label_gender)       
+                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
                     train_loss = loss_age + loss_gender
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
@@ -132,7 +137,7 @@ class ModelAgeGender:
                 else:
                     pred_gender = output
 
-                    loss_gender = cost_fn.cost_ce(pred_gender, label_gender)
+                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)
                     train_loss = loss_gender
 
                 self.optimizer.zero_grad()
@@ -177,11 +182,15 @@ class ModelAgeGender:
         ''' Validate data each epoch
         '''
         self.model.eval()
+        #age_count = self.val_generator.age_count
+        age_cfn_matrix = np.zeros((16, 16), dtype=np.uint8)
+        gender_cfn_matrix = np.zeros((2, 2), dtype=np.uint8)
+        logger = self.task.get_logger()
         mae_age, mse_age, acc_gender = 0., 0., 0.
         val_losses, loss_ages, loss_genders = torch.Tensor([0]), torch.Tensor([0]),torch.Tensor([0])
         val_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]),torch.Tensor([0])
         with torch.no_grad():
-            for inputs, labels in self.val_generator:
+            for inputs, labels in tqdm(self.val_generator, desc=f"Val Epoch {epoch}"):
                 inputs = inputs.to(self.device)
                 label_age, label_gender = labels
                 label_age = label_age.to(self.device)
@@ -193,7 +202,7 @@ class ModelAgeGender:
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
                     loss_age = A_cost.cost_coral(score_age, label_age)               
-                    loss_gender = cost_fn.cost_ce(pred_gender, label_gender)       
+                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
                     val_loss = loss_age + loss_gender
 
                 elif self.age_classifier and not self.gender_classifier:
@@ -203,7 +212,7 @@ class ModelAgeGender:
 
                 else:
                     pred_gender = output
-                    loss_gender = cost_fn.cost_ce(pred_gender, label_gender)       
+                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
                     val_loss = loss_gender
 
                 loss_ages += loss_age.item()
@@ -212,11 +221,13 @@ class ModelAgeGender:
 
                 # compute mae and mse with age label
                 if self.age_classifier:
+                    pd_age = torch.sum((pred_age > 0.5).type(torch.int), dim=1)
+                    gt_age = torch.sum(label_age, dim=1)
+                    for i in range(gt_age.shape[0]):
+                        age_cfn_matrix[gt_age[i].item(), pd_age[i].item()] += 1
 
-                    mae = metrics.compute_mae_mse(
-                        torch.sum((pred_age > 0.6).type(torch.int), dim=1), 
-                        torch.sum(label_age, dim=1)
-                    )
+                        
+                    mae = metrics.compute_mae_mse(pd_age, gt_age)
                     mae_age += mae
                     # mse_age += mse
 
@@ -224,6 +235,8 @@ class ModelAgeGender:
                 if self.gender_classifier:
                     pred_gender = torch.exp(pred_gender)
                     top_prob_gender, top_class_gender = pred_gender.topk(1, dim=1)
+                    for i in range(top_class_gender.shape[0]): 
+                        gender_cfn_matrix[top_class_gender[i].item(), label_gender[i].item()] += 1
                     equals = top_class_gender == label_gender.view(*top_class_gender.shape)
                     acc_gender += torch.mean(equals.type(torch.FloatTensor)).item()
             
@@ -232,6 +245,28 @@ class ModelAgeGender:
             loss_genders = loss_genders.item()/len(self.val_generator)
             val_losses = val_losses.item()/len(self.val_generator)
 
+            #confusion matrix ploting 
+            epoch_count = [31, 32, 33, 34, 35]
+            #age_range = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+            #gender_range = [0, 1] 
+            #print(age_cfn_matrix)
+            if epoch in epoch_count:
+                logger.report_matrix(
+                    f"Epoch {epoch}: age confusion",
+                    "ignore",
+                    iteration=0,
+                    matrix=age_cfn_matrix,
+                    xaxis="predicted label",
+                    yaxis="true label"
+                )
+                logger.report_matrix(
+                    f"Epoch {epoch}: gender confusion",
+                    "ignored",
+                    iteration=0,
+                    matrix=gender_cfn_matrix,
+                    xaxis="predicted label",
+                    yaxis="true label"
+                )
             # Mean mae, mse, 
             mae_age = mae_age/len(self.val_generator)
             # mse_age = mse_age.float()/len(self.val_generator)
@@ -244,6 +279,7 @@ class ModelAgeGender:
             self.writer.add_scalar("Validation_age_loss", loss_ages, epoch)
             self.writer.add_scalar("Validation_gender_loss", loss_genders, epoch)
             self.writer.add_scalar("Validation_loss", val_losses, epoch)
+
 
         return mae_age, acc_gender, loss_ages, loss_genders, val_losses
 

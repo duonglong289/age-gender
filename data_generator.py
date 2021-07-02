@@ -46,16 +46,19 @@ aug = iaa.Sequential([
 ])
 
 class DatasetLoader(Dataset):
-    def __init__(self, dataDir, stage, batch_size=1, image_size=224):
+    def __init__(self, dataDir, stage, batch_size=1, image_size=224, num_age_classes=16):
         self.batch_size = batch_size
         self.image_size = image_size
         self.stage = stage
         self.image_path_and_type = []
         self._load_dataset(dataDir)
         self.transform_data =  self.build_transforms()
-        self.num_age_classes = 16
+        self.num_age_classes = num_age_classes
         self.image_num = len(self.image_path_and_type)
         self.indices = np.random.permutation(self.image_num)
+        #self.age_count = [0]*num_age_classes
+        #self.gender_count = [0]*2
+
         
 
     def __len__(self):
@@ -69,7 +72,6 @@ class DatasetLoader(Dataset):
         img = cv2.imread(image_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         age, gender = label
-        age = [1]*age + [0]*(self.num_age_classes - age)
         age = torch.LongTensor(age)
 
             
@@ -114,45 +116,49 @@ class DatasetLoader(Dataset):
     '''
 
     def age_to_cls(self, age):
-        global age_cls
         if 0 <= age < 5:
-            age_cls = 0
+            return 0
         elif 5 <= age < 10:
-            age_cls = 1
+            return 1
         elif 10 <= age < 14:
-            age_cls = 2
+            return 2
         elif 14 <= age < 18:
-            age_cls = 3
+            return 3
         elif 18 <= age < 21:
-            age_cls = 4
+            return 4
         elif 21 <= age < 25:
-            age_cls = 5
+            return 5
         elif 25 <= age < 29:
-            age_cls = 6
+            return 6
         elif 29 <= age < 34:
-            age_cls = 7
+            return 7
         elif 34 <= age < 38:
-            age_cls = 8
+            return 8
         elif 38 <= age < 42:
-            age_cls = 9
+            return 9
         elif 42 <= age < 46:
-            age_cls = 10
+            return 10
         elif 46 <= age < 50:
-            age_cls = 11
+            return 11
         elif 50 <= age < 55:
-            age_cls = 12
+            return 12
         elif 55 <= age < 60:
-            age_cls = 13
+            return 13
         elif 60 <= age < 65:
-            age_cls = 14
+            return 14
         elif 65 <= age:
-            age_cls = 15
-        return age_cls
-
+            return 15
+    
+    def age_to_level(self, age):
+        age_level = [1]*age + [0]*(16 - age)
+        return age_level
 
     def _load_dataset(self, dataDir):  
         global age_cls
         random.seed(42)
+        
+        age_count = [0]*16 
+        gender_count = [0]*2       
 
         image_dir = Path(dataDir)
         img_list = image_dir.glob("*")
@@ -163,20 +169,20 @@ class DatasetLoader(Dataset):
             data_imgs = train_list
         else:
             data_imgs = val_list
-        age_count = [0]*16
-        gender_count = [0]*2
+
         for image_path in data_imgs:
             image_name = image_path.name 
-            # age =image_name.split("A")[1].split(".")[0].split("G")[0]
-            # gender =image_name.split("A")[1].split(".")[0].split("G")[1]
+            #age =image_name.split("A")[1].split(".")[0].split("G")[0]
+            #gender =image_name.split("A")[1].split(".")[0].split("G")[1]
 
             # update load label for mega_age_gender dataset
             age = image_name.strip().split("_")[1].split("A")[1]
             gender = image_name.strip().split("_")[2][1]
 
-            age_cls = self.age_to_cls(int(age))
+            age = self.age_to_cls(abs(int(age)))
+            age_cls = self.age_to_level(age)
             gender_cls = int(gender)
-            age_count[age_cls] += 1
+            age_count[age] += 1
             gender_count[gender_cls] += 1
             labels = (age_cls, gender_cls)
             if image_path.is_file():
