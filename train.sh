@@ -5,6 +5,6 @@ python3 train.py \
     --num_epochs=35 \
     --batch_size=64 \
     --init_lr=0.002 \
-    --num_workers=4 \
+    --num_workers=8 \
     --logs="./logs/log_"\
     --task_name="Training to test CoralCost"\

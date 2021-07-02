@@ -221,7 +221,8 @@ class ModelAgeGender:
 
                 # compute mae and mse with age label
                 if self.age_classifier:
-                    pd_age = torch.sum((pred_age > 0.5).type(torch.int), dim=1)
+                    prob_levels = pred_age > 0.5
+                    pd_age = torch.sum(prob_levels, dim=1)
                     gt_age = torch.sum(label_age, dim=1)
                     for i in range(gt_age.shape[0]):
                         age_cfn_matrix[gt_age[i].item(), pd_age[i].item()] += 1
