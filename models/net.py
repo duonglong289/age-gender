@@ -18,13 +18,14 @@ import models.metrics as metrics
 import models.cost_fn as cost_fn
 
 from tensorboardX import SummaryWriter
+from clearml import Task, Logger
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 
 
 class ModelAgeGender:
-    def __init__(self, device="cuda", log="./log", **kwargs):
+    def __init__(self, device="cuda", task_name=None, log="./log", **kwargs):
         if os.path.isdir(log):
             now = datetime.now()
             now_str = now.strftime("%d%m%Y_%H%M%S")
@@ -38,6 +39,7 @@ class ModelAgeGender:
         self.transformer = self.build_transform()
         self.epoch_count = 0
         self.writer = SummaryWriter()
+        self.task = Task.init(project_name="age-gender", task_name=task_name, reuse_last_task_id=False)
         
 
     def __repr__(self):
@@ -138,6 +140,8 @@ class ModelAgeGender:
             loss_ages = loss_ages.item()/len(self.train_generator)
             loss_genders = loss_genders.item()/len(self.train_generator)
             running_loss = running_loss.item()/len(self.train_generator)
+
+
             # Write tensorboard
             self.writer.add_scalar("Age_loss", loss_ages, epoch+1)
             self.writer.add_scalar("Gender_loss", loss_genders, epoch+1)
@@ -149,14 +153,14 @@ class ModelAgeGender:
             # Monitor
             if verbose:
                 logger.info(f"Epoch {self.epoch_count}: \
-                        - Loss age train: {loss_ages} \
-                        - Loss gender train: {loss_genders} \
-                        - Loss train: {running_loss} \
-                        - Loss age val: {loss_age_val} \
-                        - Loss gender val: {loss_gender_val} \
-                        - Loss val: {val_loss} \
-                        - MAE age: {mae_age} \
-                        - Acc gender: {acc_gender}" \
+                        \n- Loss age train: {loss_ages} \
+                        \n- Loss gender train: {loss_genders} \
+                        \n- Loss train: {running_loss} \
+                        \n- Loss age val: {loss_age_val} \
+                        \n- Loss gender val: {loss_gender_val} \
+                        \n- Loss val: {val_loss} \
+                        \n- MAE age: {mae_age} \
+                        \n- Acc gender: {acc_gender}" \
                     )
             
             # Save model
@@ -168,6 +172,9 @@ class ModelAgeGender:
         ''' Validate data each epoch
         '''
         self.model.eval()
+        age_cfn_matrix = np.zeros((16, 16), dtype=np.uint8)
+        gender_cfn_matrix = np.zeros((2, 2), dtype=np.uint8)
+        logger = self.task.get_logger()
         mae_age, mse_age, acc_gender = 0., 0., 0.
         val_losses, loss_ages, loss_genders = torch.Tensor([0]), torch.Tensor([0]),torch.Tensor([0])
         val_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]),torch.Tensor([0])
@@ -205,6 +212,10 @@ class ModelAgeGender:
                 if self.age_classifier:
                     mae = metrics.compute_mae_mse(pred_age.topk(1, dim=1)[1], label_age)
                     mae_age += mae
+                    gt_age = label_age               
+                    pd_age = pred_age.topk(1, dim=1)[1]                       
+                    for i in range(gt_age.shape[0]):
+                        age_cfn_matrix[gt_age[i].item(), pd_age[i].item()] += 1
                     # mse_age += mse
 
                 # compute accuracy with gender label
@@ -212,6 +223,8 @@ class ModelAgeGender:
                     pred_gender = torch.exp(pred_gender)
                     top_prob_gender, top_class_gender = pred_gender.topk(1, dim=1)
                     equals = top_class_gender == label_gender.view(*top_class_gender.shape)
+                    for i in range(top_class_gender.shape[0]): 
+                        gender_cfn_matrix[top_class_gender[i].item(), label_gender[i].item()] += 1                    
                     acc_gender += torch.mean(equals.type(torch.FloatTensor)).item()
             
             # Validation loss
@@ -219,6 +232,28 @@ class ModelAgeGender:
             loss_genders = loss_genders.item()/len(self.val_generator)
             val_losses = val_losses.item()/len(self.val_generator)
 
+		    # confusion matrix ploting 
+            epoch_count = [31, 32, 33, 34, 35]
+            #age_range = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+            #gender_range = [0, 1] 
+            #print(age_cfn_matrix)
+            if epoch in epoch_count:
+                logger.report_matrix(
+                    f"Epoch {epoch}: age confusion",
+                    "ignore",
+                    iteration=0,
+                    matrix=age_cfn_matrix,
+                    xaxis="predicted label",
+                    yaxis="true label"
+                )
+                logger.report_matrix(
+                    f"Epoch {epoch}: gender confusion",
+                    "ignored",
+                    iteration=0,
+                    matrix=gender_cfn_matrix,
+                    xaxis="predicted label",
+                    yaxis="true label"
+                )
             # Mean mae, mse, 
             mae_age = mae_age/len(self.val_generator)
             # mse_age = mse_age.float()/len(self.val_generator)
