@@ -36,11 +36,11 @@ def train(args):
     dataset_dir = args.dataset
     train_loader = DatasetLoader(dataset_dir, "train")
     val_loader = DatasetLoader(dataset_dir, "val")
-    num_age_classes = train_loader.num_age_classes
+    #num_age_classes = train_loader.num_age_classes
 
     # Init model
     age_gender_model = ModelAgeGender(log=log_dir, task_name=task_name)
-    age_gender_model.init_model(model_name=model_name, widen_factor=widen_factor, num_age_classes=16)
+    age_gender_model.init_model(model_name=model_name, widen_factor=widen_factor, num_age_classes=16, pretrained=True)
 
     age_gender_model.load_dataset((train_loader, val_loader), batch_size=batch_size, num_workers=num_workers)
 

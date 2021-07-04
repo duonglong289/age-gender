@@ -233,27 +233,22 @@ class ModelAgeGender:
             val_losses = val_losses.item()/len(self.val_generator)
 
 		    # confusion matrix ploting 
-            epoch_count = [31, 32, 33, 34, 35]
-            #age_range = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-            #gender_range = [0, 1] 
-            #print(age_cfn_matrix)
-            if epoch in epoch_count:
-                logger.report_matrix(
-                    f"Epoch {epoch}: age confusion",
-                    "ignore",
-                    iteration=0,
-                    matrix=age_cfn_matrix,
-                    xaxis="predicted label",
-                    yaxis="true label"
-                )
-                logger.report_matrix(
-                    f"Epoch {epoch}: gender confusion",
-                    "ignored",
-                    iteration=0,
-                    matrix=gender_cfn_matrix,
-                    xaxis="predicted label",
-                    yaxis="true label"
-                )
+            logger.report_matrix(
+                f"Epoch {epoch}: age confusion",
+                "ignore",
+                iteration=0,
+                matrix=age_cfn_matrix,
+                xaxis="predicted label",
+                yaxis="true label"
+            )
+            logger.report_matrix(
+                f"Epoch {epoch}: gender confusion",
+                "ignored",
+                iteration=0,
+                matrix=gender_cfn_matrix,
+                xaxis="predicted label",
+                yaxis="true label"
+            )
             # Mean mae, mse, 
             mae_age = mae_age/len(self.val_generator)
             # mse_age = mse_age.float()/len(self.val_generator)
