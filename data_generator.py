@@ -20,7 +20,7 @@ from custom_augmentation import (LightFlare, ParallelLight, SpotLight)
 logger = logging.getLogger()
 # logger.setLevel(os.environ.get ("LOGLEVEL", "INFO"))
 
-seq = iaa.Sequential([
+aug = iaa.Sequential([
     iaa.OneOf([
         iaa.Sometimes(0.2, LightFlare()),
         iaa.Sometimes(0.2, ParallelLight()),
@@ -47,7 +47,7 @@ seq = iaa.Sequential([
 
 class DatasetLoader(Dataset):
     def __init__(self, dataDir, stage, batch_size=1, image_size=224, 
-                    #augument=None
+                    augument=aug
                 ):
         self.batch_size = batch_size
         self.image_size = image_size
@@ -55,10 +55,10 @@ class DatasetLoader(Dataset):
         self.image_path_and_type = []
         self._load_dataset(dataDir)
         self.transform_data =  self.build_transforms()
-        #self.aug = augument
+        self.aug = augument
         self.image_num = len(self.image_path_and_type)
         self.indices = np.random.permutation(self.image_num)
-        #self.num_age_classes = 16
+        self.num_age_classes = 16
         
 
     def __len__(self):
@@ -73,15 +73,19 @@ class DatasetLoader(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         age, gender = label
 
-        #if self.aug:
-            #img = self.aug.augment(image=img)
-        #else:
-            #img = img
+        if self.aug:
+            #print(type(self.aug))
+            img = self.aug.augment(image=img)
+        else:
+            img = img
         
-        img = seq.augument(image=img)
+        #img = aug.augument(image=img)
+        #print(type(img))
                 
         image = Image.fromarray(img)
         X = self.transform_data(image)
+        #print(type(X))
+        #X = X.to("cuda")
         y = (age, gender)
         return X, y
     
@@ -91,8 +95,8 @@ class DatasetLoader(Dataset):
         if self.stage=="train":
             transform = T.Compose([
                     T.Resize([self.image_size,self.image_size], Image.BICUBIC),
-                    T.ColorJitter(brightness=(0.8, 1.2)),
-                    T.RandomHorizontalFlip(),
+                    #T.ColorJitter(brightness=(0.8, 1.2)),
+                    #T.RandomHorizontalFlip(),
                     T.ToTensor(),
                     normalize_transform])
         else:
@@ -157,12 +161,12 @@ class DatasetLoader(Dataset):
         gender_count = [0]*2
         for image_path in data_imgs:
             image_name = image_path.name 
-            age =image_name.split("A")[1].split(".")[0].split("G")[0]
-            gender =image_name.split("A")[1].split(".")[0].split("G")[1]
+            #age =image_name.split("A")[1].split(".")[0].split("G")[0]
+            #gender =image_name.split("A")[1].split(".")[0].split("G")[1]
 
             # update load label for mega_age_gender dataset
-            #age = image_name.strip().split("_")[1].split("A")[1]
-            #gender = image_name.strip().split("_")[2][1]
+            age = image_name.strip().split("_")[1].split("A")[1]
+            gender = image_name.strip().split("_")[2][1]
 
             age_cls = self.age_to_cls(int(age))
             gender_cls = int(gender)
@@ -180,7 +184,7 @@ class DatasetLoader(Dataset):
 
 if __name__ == "__main__":
     dataset = DatasetLoader("dataset/small_data", "train", augument=None)
-    dataset_aug = DatasetLoader("dataset/small_data", "train", augument=seq)
+    dataset_aug = DatasetLoader("dataset/small_data", "train")
     #dataset = DatasetLoader("dataset/last_face_age_gender", "val")
     img, label = dataset[3]
     img_aug, label_aug = dataset_aug[3]

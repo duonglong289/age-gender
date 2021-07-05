@@ -7,4 +7,5 @@ scipy
 imgaug
 imutils
 clearml
-t
+tensorboardX
+gpustat

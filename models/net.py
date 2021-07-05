@@ -106,8 +106,13 @@ class ModelAgeGender:
             train_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
             self.model.train()
             self.epoch_count += 1
-            for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(epoch)):
-                image = image.to(self.device)                               
+            for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(self.epoch_count)):
+                if self.device == torch.device("cuda"):
+                    print("device is cuda:0")
+                    image = image.to(self.device)       
+                else:
+                    print("There is no gpu available for training")
+                    break                        
                 label_age, label_gender = label
                 label_age = torch.LongTensor(label_age).to(self.device)
                 label_gender = torch.LongTensor(label_gender).to(self.device)
