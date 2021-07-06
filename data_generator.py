@@ -73,18 +73,18 @@ class DatasetLoader(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         age, gender = label
 
-        if self.aug:
-            #print(type(self.aug))
-            img = self.aug.augment(image=img)
-        else:
-            img = img
+        # if self.aug:
+        #     #print(type(self.aug))
+        #     img = self.aug.augment(image=img)
+        # else:
+        #     img = img
         
         
         #img = aug.augument(image=img)
         #print(type(img))
                 
         image = Image.fromarray(img)
-        img = torch.from_numpy(img)
+        #img = torch.from_numpy(img)
         X = self.transform_data(image)
         #print(type(X))
         #X = X.to("cuda")
@@ -97,8 +97,8 @@ class DatasetLoader(Dataset):
         if self.stage=="train":
             transform = T.Compose([
                     T.Resize([self.image_size,self.image_size], Image.BICUBIC),
-                    #T.ColorJitter(brightness=(0.8, 1.2)),
-                    #T.RandomHorizontalFlip(),
+                    T.ColorJitter(brightness=(0.8, 1.2)),
+                    T.RandomHorizontalFlip(),
                     T.ToTensor(),
                     normalize_transform])
         else:

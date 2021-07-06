@@ -1,4 +1,5 @@
 import numpy as np 
+import torchvision
 import random
 import cv2
 from PIL import Image
@@ -38,8 +39,10 @@ class ModelAgeGender:
 
         self.transformer = self.build_transform()
         self.epoch_count = 0
+        self.top_loss = 0
         self.writer = SummaryWriter()
         self.task = Task.init(project_name="age-gender", task_name=task_name, reuse_last_task_id=False)
+
         
 
     def __repr__(self):
@@ -65,6 +68,7 @@ class ModelAgeGender:
         self.gender_classifier = self.model.gender_cls
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
+        self.batch_size = 64
 
 
     def load_dataset(self, data_loader, batch_size=1, num_workers=8):
@@ -102,6 +106,10 @@ class ModelAgeGender:
 
         # Train mode
         for epoch in range(num_epochs):
+            global iteration 
+            iteration = 0
+            top_loss_age, top_loss_gender = 0, 0
+            top_loss_age_img, top_loss_gender_img = torch.Tensor([0]).to(self.device), torch.Tensor([0]).to(self.device)
             running_loss, loss_ages, loss_genders = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
             train_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
             self.model.train()
@@ -121,8 +129,14 @@ class ModelAgeGender:
 
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
-                    loss_age = cost_fn.cost_nll(pred_age, label_age)               
-                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
+                    loss_age = cost_fn.cost_nll(pred_age, label_age)        
+                    if loss_age > top_loss_age: 
+                        top_loss_age = loss_age
+                        top_loss_age_img = image
+                    loss_gender = cost_fn.cost_nll(pred_gender, label_gender)     
+                    if loss_gender > top_loss_gender: 
+                        top_loss_gender = loss_gender 
+                        top_loss_gender_img = image
                     train_loss = loss_age + loss_gender
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
@@ -132,6 +146,25 @@ class ModelAgeGender:
                     pred_gender = output
                     loss_gender = cost_fn.cost_nll(pred_gender, label_gender)
                     train_loss = loss_gender
+                if iteration % 10 == 9:
+                    for idx in range(self.batch_size):
+                        age_image, gender_image = top_loss_age_img[idx], top_loss_gender_img[idx]
+                        age_grid = torchvision.utils.make_grid(age_image)   
+                        gender_grid = torchvision.utils.make_grid(gender_image)
+                        self.writer.add_image("train/images/age", age_grid, self.epoch_count)
+                        self.writer.add_image("train/images/gender", gender_grid, self.epoch_count)
+                        # self.task.logger.report_matplotlib_figure(
+                        #     title=f"top loss age in iter {iteration}/epoch {self.epoch_count}",
+                        #     series="age",   
+                        #     iteration=iteration,
+                        #     figure=
+                        # )
+                        # self.task.logger.report_matplotlib_figure(
+                        #     title=f"top loss gender in iter {iteration}/epoch {self.epoch_count}",
+                        #     series="gender",
+                        #     iteration=iteration,
+                        #     figure=
+                        # )
 
                 self.optimizer.zero_grad()
                 train_loss.backward()
@@ -140,6 +173,8 @@ class ModelAgeGender:
                 loss_ages += loss_age.item()
                 loss_genders += loss_gender.item()
                 running_loss += train_loss.item()
+
+                iteration += 1
 
             # Compute loss
             loss_ages = loss_ages.item()/len(self.train_generator)
@@ -238,22 +273,24 @@ class ModelAgeGender:
             val_losses = val_losses.item()/len(self.val_generator)
 
 		    # confusion matrix ploting 
-            logger.report_matrix(
-                f"Epoch {epoch}: age confusion",
-                "ignore",
-                iteration=0,
-                matrix=age_cfn_matrix,
-                xaxis="predicted label",
-                yaxis="true label"
-            )
-            logger.report_matrix(
-                f"Epoch {epoch}: gender confusion",
-                "ignored",
-                iteration=0,
-                matrix=gender_cfn_matrix,
-                xaxis="predicted label",
-                yaxis="true label"
-            )
+            iter = int(len(self.val_generator)/self.batch_size)
+            if epoch % 5 == 0: 
+                logger.report_matrix(
+                    f"Epoch {epoch}: age confusion",
+                    "ignored",
+                    iteration=iter,
+                    matrix=age_cfn_matrix,
+                    xaxis="predicted label",
+                    yaxis="true label"
+                )
+                logger.report_matrix(
+                    f"Epoch {epoch}: gender confusion",
+                    "ignored",
+                    iteration=iter,
+                    matrix=gender_cfn_matrix,
+                    xaxis="predicted label",
+                    yaxis="true label"
+                )    
             # Mean mae, mse, 
             mae_age = mae_age/len(self.val_generator)
             # mse_age = mse_age.float()/len(self.val_generator)
