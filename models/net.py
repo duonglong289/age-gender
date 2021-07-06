@@ -108,7 +108,7 @@ class ModelAgeGender:
             self.epoch_count += 1
             for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(self.epoch_count)):
                 if self.device == torch.device("cuda"):
-                    print("device is cuda:0")
+                    #print("device is cuda:0")
                     image = image.to(self.device)       
                 else:
                     print("There is no gpu available for training")

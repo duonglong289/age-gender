@@ -79,10 +79,12 @@ class DatasetLoader(Dataset):
         else:
             img = img
         
+        
         #img = aug.augument(image=img)
         #print(type(img))
                 
         image = Image.fromarray(img)
+        img = torch.from_numpy(img)
         X = self.transform_data(image)
         #print(type(X))
         #X = X.to("cuda")
@@ -183,8 +185,8 @@ class DatasetLoader(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = DatasetLoader("dataset/small_data", "train", augument=None)
-    dataset_aug = DatasetLoader("dataset/small_data", "train")
+    dataset = DatasetLoader("dataset/last_face_age_gender", "train", augument=None)
+    dataset_aug = DatasetLoader("dataset/last_face_age_gender", "train")
     #dataset = DatasetLoader("dataset/last_face_age_gender", "val")
     img, label = dataset[3]
     img_aug, label_aug = dataset_aug[3]
