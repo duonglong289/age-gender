@@ -168,7 +168,7 @@ class MobileNetV2(nn.Module):
                 nn.Linear(self.last_channel, 512),
                 nn.ReLU(),
                 nn.Dropout(0.2),
-                nn.Linear(512, num_age_classes))
+                nn.Linear(512, num_age_classes - 1))
 
         if num_gender_classes is not None:
             self.gender_cls = True

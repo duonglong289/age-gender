@@ -2,7 +2,7 @@ import glob
 import os
 import numpy as np 
 import imgaug.augmenters as iaa 
-import imgaug as ia 
+import imgaug as ia
 import random
 import logging
 from PIL import Image
@@ -11,7 +11,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 
-import torch 
+import torch
+from torch.cuda import ipc_collect 
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
@@ -20,45 +21,20 @@ from custom_augmentation import (LightFlare, ParallelLight, SpotLight)
 logger = logging.getLogger()
 # logger.setLevel(os.environ.get ("LOGLEVEL", "INFO"))
 
-aug = iaa.Sequential([
-    iaa.OneOf([
-        iaa.Sometimes(0.2, LightFlare()),
-        iaa.Sometimes(0.2, ParallelLight()),
-        iaa.Sometimes(0.2, SpotLight())
-    ]),
-    iaa.Sometimes(0.025, iaa.PerspectiveTransform(scale=(0.01, 0.1), keep_size=True)),
-    iaa.Sometimes(0.2, 
-        iaa.OneOf([
-            iaa.GaussianBlur((0, 1.5)),
-            iaa.AverageBlur(k=(3, 5)),
-            iaa.MedianBlur(k=3),
-            iaa.MotionBlur(k=(3, 7), angle=(-45, 45))
-        ])
-    ),
-    iaa.Sometimes(0.2, 
-        iaa.Affine(
-            scale=(0.001, 0.05),
-            translate_percent=(0.01),
-            rotate=(-10, 10),
-            shear=(-5, 5)
-        )    
-    )
-])
 
 class DatasetLoader(Dataset):
-    def __init__(self, dataDir, stage, batch_size=1, image_size=224, num_age_classes=16):
+    
+    def __init__(self, dataDir, stage, batch_size=1, image_size=224):
+        self.num_age_classes = 16
+        self.label_array = []
         self.batch_size = batch_size
         self.image_size = image_size
         self.stage = stage
         self.image_path_and_type = []
         self._load_dataset(dataDir)
         self.transform_data =  self.build_transforms()
-        self.num_age_classes = num_age_classes
         self.image_num = len(self.image_path_and_type)
         self.indices = np.random.permutation(self.image_num)
-        #self.age_count = [0]*num_age_classes
-        #self.gender_count = [0]*2
-
         
 
     def __len__(self):
@@ -74,16 +50,12 @@ class DatasetLoader(Dataset):
         age, gender = label
         age = torch.LongTensor(age)
 
-            
-        # try:
-        #     img = aug.augment(image=img)
-        # except:
-        #     img = img
-                
         image = Image.fromarray(img)
+ 
+        #X = self.data_augumentation(img)
         X = self.transform_data(image)
         #X = image
-        #X = self.data_augumentation(X)
+        
         y = (age, gender)
         return X, y
     
@@ -108,12 +80,36 @@ class DatasetLoader(Dataset):
         
 
         return transform
-    '''
-    def data_augumentation(self, image):
+    
+    def data_augumentation(self, images):
+        seq = iaa.Sequential([
+            iaa.OneOf([
+                iaa.Sometimes(0.2, LightFlare()),
+                iaa.Sometimes(0.2, ParallelLight()),
+                iaa.Sometimes(0.2, SpotLight())
+            ]),
+            iaa.Sometimes(0.025, iaa.PerspectiveTransform(scale=(0.01, 0.1), keep_size=True)),
+            iaa.Sometimes(0.2, 
+                iaa.OneOf([
+                    iaa.GaussianBlur((0, 1.5)),
+                    iaa.AverageBlur(k=(3, 5)),
+                    iaa.MedianBlur(k=3),
+                    iaa.MotionBlur(k=(3, 7), angle=(-45, 45))
+                ])
+            ),
+            iaa.Sometimes(0.2, 
+                iaa.Affine(
+                    scale=(0.001, 0.05),
+                    translate_percent=(0.01),
+                    rotate=(-10, 10),
+                    shear=(-5, 5)
+                )    
+            )
+        ])
+
         if self.stage == "train":
-            aug_img = LightFlare().augment_image(image)
+            aug_img = seq.augument_images(images)
         return aug_img
-    '''
 
     def age_to_cls(self, age):
         if 0 <= age < 5:
@@ -150,14 +146,13 @@ class DatasetLoader(Dataset):
             return 15
     
     def age_to_level(self, age):
-        age_level = [1]*age + [0]*(16 - age)
+        age_level = [1]*age + [0]*(self.num_age_classes - 1 - age)
         return age_level
 
     def _load_dataset(self, dataDir):  
         global age_cls
         random.seed(42)
-        
-        age_count = [0]*16 
+        age_count = [0]*self.num_age_classes
         gender_count = [0]*2       
 
         image_dir = Path(dataDir)
@@ -172,8 +167,8 @@ class DatasetLoader(Dataset):
 
         for image_path in data_imgs:
             image_name = image_path.name 
-            #age =image_name.split("A")[1].split(".")[0].split("G")[0]
-            #gender =image_name.split("A")[1].split(".")[0].split("G")[1]
+            # age =image_name.split("A")[1].split(".")[0].split("G")[0]
+            # gender =image_name.split("A")[1].split(".")[0].split("G")[1]
 
             # update load label for mega_age_gender dataset
             age = image_name.strip().split("_")[1].split("A")[1]
@@ -181,6 +176,7 @@ class DatasetLoader(Dataset):
 
             age = self.age_to_cls(abs(int(age)))
             age_cls = self.age_to_level(age)
+            self.label_array.append(age_cls)
             gender_cls = int(gender)
             age_count[age] += 1
             gender_count[gender_cls] += 1
@@ -195,26 +191,23 @@ class DatasetLoader(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = DatasetLoader("./dataset/last_face_age_gender", "train")
-    #dataset = DatasetLoader("dataset/small_data", "val")
-    def convert_gender_to_string(gender):
-        if gender:
-            return "Male"
-        return "Female"
+    #import ipdb; ipdb.set_trace()
 
-    plt.figure(figsize=(30,30))
-    for i in range(9):
-        image, label = dataset[i + 100]
-        age, gender = label
-        gender = convert_gender_to_string(gender)
-        plt.subplot(3, 3, i + 1)
-        #age = torch.sum(age).item()
-        image = image.reshape(224, 224, 3)
-        plt.imshow(image.numpy())
-        plt.title(f"age: {age}\ngender: {gender}")
-        plt.axis("off")
-    plt.show()
+    dataset = DatasetLoader("dataset/last_face_age_gender", "train")
+    dataset_aug = DatasetLoader("dataset/last_face_age_gender", "train")
+    #dataset = DatasetLoader("dataset/last_face_age_gender", "val")
+    img, label = dataset[3]
+    img_aug, label_aug = dataset_aug[3]
 
-
-        
+    age, gender = label  
+    age_aug, label_aug = label_aug 
+    img = img.numpy().transpose((2, 1, 0))
+    img_aug = img_aug.numpy().transpose((2, 1, 0))
     
+    plt.subplot(121)
+    plt.imshow(img)
+
+    plt.subplot(122)
+    plt.imshow(img_aug)
+
+    plt.show()

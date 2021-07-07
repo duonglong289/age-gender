@@ -28,7 +28,7 @@ logger = logging.getLogger()
 
 
 
-A_cost = cost_fn.CoralCost(num_classes=16, imp_weights=0.005)
+#A_cost = cost_fn.CoralCost(num_classes=16, imp_weights=0.005)
 class ModelAgeGender:
     def __init__(self, device="cuda", log="./log",task_name=None,**kwargs):
         if os.path.isdir(log):
@@ -45,6 +45,7 @@ class ModelAgeGender:
         self.epoch_count = 0
         self.task = Task.init(project_name="age-gender", task_name=task_name, reuse_last_task_id=False)
         self.writer = SummaryWriter()
+        self.num_age_classes = 16
         
 
     def __repr__(self):
@@ -80,10 +81,29 @@ class ModelAgeGender:
         }
         # Load dataset
         train_loader, val_loader = data_loader
+        self.train_label = torch.Tensor(train_loader.label_array)
+        self.val_label = torch.Tensor(val_loader.label_array)
         # self.train_generator = DatasetLoader(dataset_dir, "train")
         self.train_generator = torch.utils.data.DataLoader(train_loader, **params)
         # self.val_gen = DatasetLoader(dataset_dir, "val")
         self.val_generator = torch.utils.data.DataLoader(val_loader, **params)
+    
+
+    def task_importance_weights(self, data, label_array):
+        label_array = label_array.to(self.device)
+        uniq = torch.unique(label_array)
+        num_examples = len(data)
+
+        m = torch.zeros(num_examples)
+
+        for i, t in enumerate(torch.arange(torch.min(uniq), torch.max(uniq))):
+            m_k = torch.max(torch.tensor([label_array[label_array > t].size(0), 
+                                        num_examples - label_array[label_array > t].size(0)]))
+            m[i] = torch.sqrt(m_k.float())
+
+        imp = m/torch.max(m)
+        imp = imp[0:len(uniq)-1]
+        return imp
 
     def train(self, num_epochs, learning_rate, freeze=False, verbose=True):
         self._init_optim(learning_rate)
@@ -104,7 +124,9 @@ class ModelAgeGender:
             for params in self.model.parameters():
                 params.requires_grad = True 
 
-        #Create Confusion Matrix 
+        # Compute important weights 
+        imp_weight = self.task_importance_weights(data=self.train_generator, label_array=self.train_label)
+        imp_weight = imp_weight.to(self.device)
         
 
         # Train mode
@@ -126,13 +148,12 @@ class ModelAgeGender:
 
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
-                    loss_age = A_cost.cost_coral(score_age, label_age)               
+                    loss_age = cost_fn.cost_coral(score_age, label_age, imp_weight)               
                     loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
                     train_loss = loss_age + loss_gender
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
-
-                    loss_age = A_cost.cost_coral(score_age, label_age)                    
+                    loss_age = cost_fn.cost_coral(score_age, label_age, imp_weight)                    
                     train_loss = loss_age
                 else:
                     pred_gender = output
@@ -183,6 +204,8 @@ class ModelAgeGender:
         '''
         self.model.eval()
         #age_count = self.val_generator.age_count
+        imp_weight = self.task_importance_weights(data=self.val_generator, label_array=self.val_label)
+        imp_weight = imp_weight.to(self.device)
         age_cfn_matrix = np.zeros((16, 16), dtype=np.uint8)
         gender_cfn_matrix = np.zeros((2, 2), dtype=np.uint8)
         logger = self.task.get_logger()
@@ -201,13 +224,13 @@ class ModelAgeGender:
 
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
-                    loss_age = A_cost.cost_coral(score_age, label_age)               
+                    loss_age = cost_fn.cost_coral(score_age, label_age, imp_weight)               
                     loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
                     val_loss = loss_age + loss_gender
 
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
-                    loss_age = A_cost.cost_coral(score_age, label_age)                    
+                    loss_age = cost_fn.cost_coral(score_age, label_age, imp_weight)                    
                     val_loss = loss_age
 
                 else:
@@ -247,23 +270,19 @@ class ModelAgeGender:
             val_losses = val_losses.item()/len(self.val_generator)
 
             #confusion matrix ploting 
-            epoch_count = [31, 32, 33, 34, 35]
-            #age_range = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-            #gender_range = [0, 1] 
-            #print(age_cfn_matrix)
-            if epoch in epoch_count:
+            if epoch % 5 == 0:
                 logger.report_matrix(
                     f"Epoch {epoch}: age confusion",
-                    "ignore",
-                    iteration=0,
+                    "VALIDATION",
+                    iteration=epoch,
                     matrix=age_cfn_matrix,
                     xaxis="predicted label",
                     yaxis="true label"
                 )
                 logger.report_matrix(
                     f"Epoch {epoch}: gender confusion",
-                    "ignored",
-                    iteration=0,
+                    "VALIDATION",
+                    iteration=epoch,
                     matrix=gender_cfn_matrix,
                     xaxis="predicted label",
                     yaxis="true label"
@@ -285,11 +304,11 @@ class ModelAgeGender:
         return mae_age, acc_gender, loss_ages, loss_genders, val_losses
 
 
-    def age_to_level(self, age):
-        ''' Convert age to levels, for ordinary regression task
-        '''
-        level = [1]*age + [0]*[NUM_AGE_CLASSES - 1 - age]
-        return level
+    # def age_to_level(self, age):
+    #     ''' Convert age to levels, for ordinary regression task
+    #     '''
+    #     level = [1]*age + [0]*[NUM_AGE_CLASSES - 1 - age]
+    #     return level
 
     def age_to_class(self, age_cls):
         if age_cls == 0:

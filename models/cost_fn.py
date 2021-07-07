@@ -30,17 +30,8 @@ def cost_nll(predicted, groundtruth):
     cost = loss(predicted, groundtruth)
     return cost
 
-class CoralCost:
-    def __init__(self, num_classes=16, imp_weights=0.001):
-        super().__init__()
-        self.num_classes = num_classes
-        self.imp_weights = imp_weights
-
-    def cost_coral(self, predicted, groundtruth):
-        imp = self.imp_weights
-        if self.imp_weights is None:
-            imp = 1
-
-        val = (-torch.sum((F.logsigmoid(predicted)*groundtruth*imp
-                        + (F.logsigmoid(1 - predicted))*(1-groundtruth)), dim=1))
-        return torch.mean(val)        
+def cost_coral(logits, levels, imp):
+    val = (-torch.sum((F.logsigmoid(logits)*levels
+                      + (F.logsigmoid(logits) - logits)*(1-levels))*imp,
+           dim=1))
+    return torch.mean(val)
