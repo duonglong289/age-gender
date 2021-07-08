@@ -12,15 +12,16 @@ val_loader = DatasetLoader(sample_path, "val")
 params = {
     "batch_size": 1,
     "shuffle": False,
-    "num_classes": 0
+    "num_workers": 8
 }
 
-train_generator = torch.ultis.data.DataLoader(train_loader, **params)
-val_generator = torch.ultis.data.DataLoader(val_loader, **params)
-dataset = {
-    "train": train_generator,
-    "val": val_generator
-}
+train_generator = torch.utils.data.DataLoader(train_loader, **params)
+val_generator = torch.utils.data.DataLoader(val_loader, **params)
+dataset = (
+    ("train", train_generator),
+    ("val", val_generator)
+
+)
 
 # Create csv data
 csv_dict = {
@@ -76,15 +77,15 @@ for category, data in dataset:
                 loss = loss_gender
             
             csv_dict["Sample"].append(path)
-            csv_dict["Age loss"].append(loss_age.item())
-            csv_dict["Gender loss"].append(loss_gender.item()) 
+            csv_dict["Age Loss"].append(loss_age.item())
+            csv_dict["Gender Loss"].append(loss_gender.item()) 
             if category == "train":
                 csv_dict["Train Loss"].append(loss.item())
             else:
                 csv_dict["Val Loss"].append(loss.item())
     
-df = pd.DataFrame(csv_dict)
-df.to_csv("loss_debuging.csv")
+            df = pd.DataFrame(csv_dict)
+            df.to_csv("loss_debuging.csv")
 print("DONE!")
 
         
