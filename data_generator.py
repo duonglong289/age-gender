@@ -75,12 +75,10 @@ class DatasetLoader(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         age, gender = label
 
-        # if self.aug:
-        #     #print(type(self.aug))
-        #     img = self.aug.augment(image=img)
-        # else:
-        #     img = img
-        
+        if self.aug:
+            img = self.aug(image=img)
+        else:
+            img = img
         
         #img = aug.augument(image=img)
         #print(type(img))
@@ -224,8 +222,8 @@ if __name__ == "__main__":
     dataset = DatasetLoader("dataset/last_face_age_gender", "train", augument=None)
     dataset_aug = DatasetLoader("dataset/last_face_age_gender", "train")
     #dataset = DatasetLoader("dataset/last_face_age_gender", "val")
-    img, label = dataset[3]
-    img_aug, label_aug = dataset_aug[3]
+    path, img, label = dataset[3]
+    path, img_aug, label_aug = dataset_aug[3]
 
     age, gender = label  
     age_aug, label_aug = label_aug 

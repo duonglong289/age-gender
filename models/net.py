@@ -139,7 +139,7 @@ class ModelAgeGender:
                     loss_age = cost_fn.cost_nll(pred_age, label_age)        
                     loss_gender = cost_fn.cost_nll(pred_gender, label_gender)     
                     train_loss = loss_age + loss_gender
-                    import ipdb; ipdb.set_trace()
+                    #import ipdb; ipdb.set_trace()
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
                     loss_age = cost_fn.cost_nll(pred_age, label_age)                    
@@ -257,25 +257,25 @@ class ModelAgeGender:
             loss_genders = loss_genders.item()/len(self.val_generator)
             val_losses = val_losses.item()/len(self.val_generator)
 
-		    # confusion matrix ploting 
-            iter = int(len(self.val_generator)/self.batch_size)
-            if epoch % 5 == 0: 
-                logger.report_matrix(
-                    f"Epoch {epoch}: age confusion",
-                    "ignored",
-                    iteration=iter,
-                    matrix=age_cfn_matrix,
-                    xaxis="predicted label",
-                    yaxis="true label"
-                )
-                logger.report_matrix(
-                    f"Epoch {epoch}: gender confusion",
-                    "ignored",
-                    iteration=iter,
-                    matrix=gender_cfn_matrix,
-                    xaxis="predicted label",
-                    yaxis="true label"
-                )    
+		    # # confusion matrix ploting 
+            # iter = int(len(self.val_generator)/self.batch_size)
+            # if epoch % 5 == 0: 
+            #     logger.report_matrix(
+            #         f"Epoch {epoch}: age confusion",
+            #         "ignored",
+            #         iteration=iter,
+            #         matrix=age_cfn_matrix,
+            #         xaxis="predicted label",
+            #         yaxis="true label"
+            #     )
+            #     logger.report_matrix(
+            #         f"Epoch {epoch}: gender confusion",
+            #         "ignored",
+            #         iteration=iter,
+            #         matrix=gender_cfn_matrix,
+            #         xaxis="predicted label",
+            #         yaxis="true label"
+            #     )    
             # Mean mae, mse, 
             mae_age = mae_age/len(self.val_generator)
             # mse_age = mse_age.float()/len(self.val_generator)
