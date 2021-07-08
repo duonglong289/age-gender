@@ -69,6 +69,7 @@ class ModelAgeGender:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.batch_size = 64
+    
 
 
     def load_dataset(self, data_loader, batch_size=1, num_workers=8):
@@ -85,7 +86,7 @@ class ModelAgeGender:
         self.val_generator = torch.utils.data.DataLoader(val_loader, **params)
 
     
-    def train(self, num_epochs, learning_rate, freeze=False, verbose=True):
+    def train(self, num_epochs, learning_rate, freeze=False, verbose=True, forward=False):
         self._init_param(learning_rate)
         # Freeze backbone
         if freeze:
@@ -106,21 +107,27 @@ class ModelAgeGender:
 
         # Train mode
         for epoch in range(num_epochs):
-            global iteration 
             iteration = 0
+            global csv_dict
+            csv_dict = {
+                "Sample": [],
+                "Age loss": [], 
+                "Gender loss": [],
+                "Category": [],
+            }
+            
             top_loss_age, top_loss_gender = 0, 0
             top_loss_age_img, top_loss_gender_img = torch.Tensor([0]).to(self.device), torch.Tensor([0]).to(self.device)
             running_loss, loss_ages, loss_genders = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
             train_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
             self.model.train()
             self.epoch_count += 1
-            for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(self.epoch_count)):
+            for path, image, label in tqdm(self.train_generator, desc="Epoch {}:".format(self.epoch_count)):
                 if self.device == torch.device("cuda"):
-                    #print("device is cuda:0")
                     image = image.to(self.device)       
                 else:
                     print("There is no gpu available for training")
-                    break                        
+                    break                       
                 label_age, label_gender = label
                 label_age = torch.LongTensor(label_age).to(self.device)
                 label_gender = torch.LongTensor(label_gender).to(self.device)
@@ -130,14 +137,9 @@ class ModelAgeGender:
                 if self.age_classifier and self.gender_classifier:
                     score_age, pred_age, pred_gender = output
                     loss_age = cost_fn.cost_nll(pred_age, label_age)        
-                    if loss_age > top_loss_age: 
-                        top_loss_age = loss_age
-                        top_loss_age_img = image
                     loss_gender = cost_fn.cost_nll(pred_gender, label_gender)     
-                    if loss_gender > top_loss_gender: 
-                        top_loss_gender = loss_gender 
-                        top_loss_gender_img = image
                     train_loss = loss_age + loss_gender
+                    import ipdb; ipdb.set_trace()
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
                     loss_age = cost_fn.cost_nll(pred_age, label_age)                    
@@ -146,35 +148,19 @@ class ModelAgeGender:
                     pred_gender = output
                     loss_gender = cost_fn.cost_nll(pred_gender, label_gender)
                     train_loss = loss_gender
-                if iteration % 10 == 9:
-                    for idx in range(self.batch_size):
-                        age_image, gender_image = top_loss_age_img[idx], top_loss_gender_img[idx]
-                        age_grid = torchvision.utils.make_grid(age_image)   
-                        gender_grid = torchvision.utils.make_grid(gender_image)
-                        self.writer.add_image("train/images/age", age_grid, self.epoch_count)
-                        self.writer.add_image("train/images/gender", gender_grid, self.epoch_count)
-                        # self.task.logger.report_matplotlib_figure(
-                        #     title=f"top loss age in iter {iteration}/epoch {self.epoch_count}",
-                        #     series="age",   
-                        #     iteration=iteration,
-                        #     figure=
-                        # )
-                        # self.task.logger.report_matplotlib_figure(
-                        #     title=f"top loss gender in iter {iteration}/epoch {self.epoch_count}",
-                        #     series="gender",
-                        #     iteration=iteration,
-                        #     figure=
-                        # )
 
+                
                 self.optimizer.zero_grad()
                 train_loss.backward()
-                self.optimizer.step()
+                self.optimizer.step()  
 
                 loss_ages += loss_age.item()
                 loss_genders += loss_gender.item()
                 running_loss += train_loss.item()
-
+                
                 iteration += 1
+            # Evaluate
+            mae_age, acc_gender, loss_age_val, loss_gender_val, val_loss = self._validate(self.epoch_count)
 
             # Compute loss
             loss_ages = loss_ages.item()/len(self.train_generator)
@@ -187,8 +173,7 @@ class ModelAgeGender:
             self.writer.add_scalar("Gender_loss", loss_genders, epoch+1)
             self.writer.add_scalar("Train_loss", running_loss, epoch+1)
             
-            # Evaluate
-            mae_age, acc_gender, loss_age_val, loss_gender_val, val_loss = self._validate(epoch+1)
+
             
             # Monitor
             if verbose:
@@ -219,7 +204,7 @@ class ModelAgeGender:
         val_losses, loss_ages, loss_genders = torch.Tensor([0]), torch.Tensor([0]),torch.Tensor([0])
         val_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]),torch.Tensor([0])
         with torch.no_grad():
-            for inputs, labels in self.val_generator:
+            for path, inputs, labels in self.val_generator:
                 inputs = inputs.to(self.device)
                 label_age, label_gender = labels
                 label_age = label_age.to(self.device)

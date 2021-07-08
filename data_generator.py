@@ -45,10 +45,12 @@ aug = iaa.Sequential([
     )
 ])
 
+
 class DatasetLoader(Dataset):
     def __init__(self, dataDir, stage, batch_size=1, image_size=224, 
                     augument=aug
                 ):
+        self.num_age_classes = 16
         self.batch_size = batch_size
         self.image_size = image_size
         self.stage = stage
@@ -58,7 +60,7 @@ class DatasetLoader(Dataset):
         self.aug = augument
         self.image_num = len(self.image_path_and_type)
         self.indices = np.random.permutation(self.image_num)
-        self.num_age_classes = 16
+        
         
 
     def __len__(self):
@@ -89,13 +91,14 @@ class DatasetLoader(Dataset):
         #print(type(X))
         #X = X.to("cuda")
         y = (age, gender)
-        return X, y
+        return os.path.basename(image_path), X, y
     
 
     def build_transforms(self, PIXEL_MEAN = [0.5, 0.5, 0.5], PIXEL_STD =[0.5, 0.5, 0.5]):
         normalize_transform = T.Normalize(mean=PIXEL_MEAN, std=PIXEL_STD)
         if self.stage=="train":
             transform = T.Compose([
+                    #aug.augment_image,
                     T.Resize([self.image_size,self.image_size], Image.BICUBIC),
                     T.ColorJitter(brightness=(0.8, 1.2)),
                     T.RandomHorizontalFlip(),
@@ -145,6 +148,39 @@ class DatasetLoader(Dataset):
         elif 65 <= age:
             age_cls = 15
         return age_cls
+    
+    # def data_augumentation(self, images):
+    #     seq = iaa.Sequential([
+    #         iaa.OneOf([
+    #             iaa.Sometimes(0.2, LightFlare()),
+    #             iaa.Sometimes(0.2, ParallelLight()),
+    #             iaa.Sometimes(0.2, SpotLight())
+    #         ]),
+    #         iaa.Sometimes(0.025, iaa.PerspectiveTransform(scale=(0.01, 0.1), keep_size=True)),
+    #         iaa.Sometimes(0.2, 
+    #             iaa.OneOf([
+    #                 iaa.GaussianBlur((0, 1.5)),
+    #                 iaa.AverageBlur(k=(3, 5)),
+    #                 iaa.MedianBlur(k=3),
+    #                 iaa.MotionBlur(k=(3, 7), angle=(-45, 45))
+    #             ])
+    #         ),
+    #         iaa.Sometimes(0.2, 
+    #             iaa.Affine(
+    #                 scale=(0.001, 0.05),
+    #                 translate_percent=(0.01),
+    #                 rotate=(-10, 10),
+    #                 shear=(-5, 5)
+    #             )    
+    #         )
+    #     ])
+
+    #     if self.stage == "train":
+    #         if not isinstance(images, list):
+    #             images = [images]
+    #         aug_img = seq.augment_images(images)
+            
+    #     return aug_img
 
 
     def _load_dataset(self, dataDir):  
@@ -159,7 +195,7 @@ class DatasetLoader(Dataset):
             data_imgs = train_list
         else:
             data_imgs = val_list
-        age_count = [0]*16
+        age_count = [0]*self.num_age_classes
         gender_count = [0]*2
         for image_path in data_imgs:
             image_name = image_path.name 
