@@ -126,7 +126,7 @@ class ModelAgeGender:
                 if self.device == torch.device("cuda"):
                     image = image.to(self.device)       
                 else:
-                    print("There is no gpu available for training")
+                    print("[ERROR] There is no gpu available for training")
                     break                       
                 label_age, label_gender = label
                 label_age = torch.LongTensor(label_age).to(self.device)
@@ -139,7 +139,7 @@ class ModelAgeGender:
                     loss_age = cost_fn.cost_nll(pred_age, label_age)        
                     loss_gender = cost_fn.cost_nll(pred_gender, label_gender)     
                     train_loss = loss_age + loss_gender
-                    #import ipdb; ipdb.set_trace()
+                    # import ipdb; ipdb.set_trace()
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, pred_age = output 
                     loss_age = cost_fn.cost_nll(pred_age, label_age)                    
@@ -197,14 +197,14 @@ class ModelAgeGender:
         ''' Validate data each epoch
         '''
         self.model.eval()
-        age_cfn_matrix = np.zeros((16, 16), dtype=np.uint8)
-        gender_cfn_matrix = np.zeros((2, 2), dtype=np.uint8)
+        # age_cfn_matrix = np.zeros((16, 16), dtype=np.uint8)
+        # gender_cfn_matrix = np.zeros((2, 2), dtype=np.uint8)
         logger = self.task.get_logger()
         mae_age, mse_age, acc_gender = 0., 0., 0.
         val_losses, loss_ages, loss_genders = torch.Tensor([0]), torch.Tensor([0]),torch.Tensor([0])
         val_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]),torch.Tensor([0])
         with torch.no_grad():
-            for path, inputs, labels in self.val_generator:
+            for path, inputs, labels in tqdm(self.val_generator):
                 inputs = inputs.to(self.device)
                 label_age, label_gender = labels
                 label_age = label_age.to(self.device)
@@ -239,8 +239,8 @@ class ModelAgeGender:
                     mae_age += mae
                     gt_age = label_age               
                     pd_age = pred_age.topk(1, dim=1)[1]                       
-                    for i in range(gt_age.shape[0]):
-                        age_cfn_matrix[gt_age[i].item(), pd_age[i].item()] += 1
+                    # for i in range(gt_age.shape[0]):
+                    #     age_cfn_matrix[gt_age[i].item(), pd_age[i].item()] += 1
                     # mse_age += mse
 
                 # compute accuracy with gender label
@@ -248,8 +248,8 @@ class ModelAgeGender:
                     pred_gender = torch.exp(pred_gender)
                     top_prob_gender, top_class_gender = pred_gender.topk(1, dim=1)
                     equals = top_class_gender == label_gender.view(*top_class_gender.shape)
-                    for i in range(top_class_gender.shape[0]): 
-                        gender_cfn_matrix[top_class_gender[i].item(), label_gender[i].item()] += 1                    
+                    # for i in range(top_class_gender.shape[0]): 
+                    #     gender_cfn_matrix[top_class_gender[i].item(), label_gender[i].item()] += 1                    
                     acc_gender += torch.mean(equals.type(torch.FloatTensor)).item()
             
             # Validation loss
