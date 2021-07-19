@@ -50,7 +50,7 @@ class DatasetLoader(Dataset):
     def __init__(self, dataDir, stage, batch_size=1, image_size=224, 
                     augument=aug
                 ):
-        self.num_age_classes = 16
+        self.num_age_classes = 81
         self.batch_size = batch_size
         self.image_size = image_size
         self.stage = stage
@@ -112,73 +112,10 @@ class DatasetLoader(Dataset):
 
 
     def age_to_cls(self, age):
-        global age_cls
-        if 0 <= age < 5:
-            age_cls = 0
-        elif 5 <= age < 10:
-            age_cls = 1
-        elif 10 <= age < 14:
-            age_cls = 2
-        elif 14 <= age < 18:
-            age_cls = 3
-        elif 18 <= age < 21:
-            age_cls = 4
-        elif 21 <= age < 25:
-            age_cls = 5
-        elif 25 <= age < 29:
-            age_cls = 6
-        elif 29 <= age < 34:
-            age_cls = 7
-        elif 34 <= age < 38:
-            age_cls = 8
-        elif 38 <= age < 42:
-            age_cls = 9
-        elif 42 <= age < 46:
-            age_cls = 10
-        elif 46 <= age < 50:
-            age_cls = 11
-        elif 50 <= age < 55:
-            age_cls = 12
-        elif 55 <= age < 60:
-            age_cls = 13
-        elif 60 <= age < 65:
-            age_cls = 14
-        elif 65 <= age:
-            age_cls = 15
-        return age_cls
-    
-    # def data_augumentation(self, images):
-    #     seq = iaa.Sequential([
-    #         iaa.OneOf([
-    #             iaa.Sometimes(0.2, LightFlare()),
-    #             iaa.Sometimes(0.2, ParallelLight()),
-    #             iaa.Sometimes(0.2, SpotLight())
-    #         ]),
-    #         iaa.Sometimes(0.025, iaa.PerspectiveTransform(scale=(0.01, 0.1), keep_size=True)),
-    #         iaa.Sometimes(0.2, 
-    #             iaa.OneOf([
-    #                 iaa.GaussianBlur((0, 1.5)),
-    #                 iaa.AverageBlur(k=(3, 5)),
-    #                 iaa.MedianBlur(k=3),
-    #                 iaa.MotionBlur(k=(3, 7), angle=(-45, 45))
-    #             ])
-    #         ),
-    #         iaa.Sometimes(0.2, 
-    #             iaa.Affine(
-    #                 scale=(0.001, 0.05),
-    #                 translate_percent=(0.01),
-    #                 rotate=(-10, 10),
-    #                 shear=(-5, 5)
-    #             )    
-    #         )
-    #     ])
-
-    #     if self.stage == "train":
-    #         if not isinstance(images, list):
-    #             images = [images]
-    #         aug_img = seq.augment_images(images)
-            
-    #     return aug_img
+        if age < 80:
+            return age  
+        else:
+            return 80
 
 
     def _load_dataset(self, dataDir):  
@@ -205,6 +142,7 @@ class DatasetLoader(Dataset):
             gender = image_name.strip().split("_")[2][1]
 
             age_cls = self.age_to_cls(int(age))
+            
             gender_cls = int(gender)
             age_count[age_cls] += 1
             gender_count[gender_cls] += 1
