@@ -130,8 +130,13 @@ class DatasetLoader(Dataset):
         gender_count = [0]*2
         for image_path in data_imgs:
             image_name = image_path.name 
+<<<<<<< HEAD
             # age = image_name.split("A")[1].split(".")[0].split("G")[0]
             # gender = image_name.split("A")[1].split(".")[0].split("G")[1]
+=======
+            #age = image_name.split("A")[1].split(".")[0].split("G")[0]
+            #gender = image_name.split("A")[1].split(".")[0].split("G")[1]
+>>>>>>> 338d5a74bbed7cdd6d85b0d969d20f039cc747f3
 
             # update load label for mega_age_gender dataset
             age = image_name.strip().split("_")[1].split("A")[1]
@@ -144,7 +149,7 @@ class DatasetLoader(Dataset):
             age_cls = self.age_to_level(int(age))
             
             # Convert gender to class id
-            gender_cls = int(gender)
+            gender_cls = abs(int(gender))
 
             # Statistic dataset
             age_count[int(age)] += 1
@@ -178,5 +183,10 @@ if __name__ == "__main__":
         new = pd.DataFrame([[os.path.basename(image_path), tuple(img.shape), tuple(age.shape), gender.item()]], columns=column)
         df = df.append(new)
     df.to_csv("./train_dataset.csv", index=False)
+<<<<<<< HEAD
+=======
+    
+
+>>>>>>> 338d5a74bbed7cdd6d85b0d969d20f039cc747f3
 
     
