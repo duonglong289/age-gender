@@ -100,14 +100,17 @@ class ModelAgeGender:
 
         # Train mode
         for epoch in range(num_epochs):
+            # Learning rate decay
+            # self._init_param(learning_rate/(1+epoch))
             running_loss, loss_ages, loss_genders = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
             train_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]), torch.Tensor([0])
             self.model.train()
             self.epoch_count += 1
-            for image, label in tqdm(self.train_generator, desc="Epoch {}:".format(self.epoch_count)):
+            for image_path, image, label in tqdm(self.train_generator, desc="Epoch {}:".format(self.epoch_count)):
                 image = image.to(self.device)                               
                 label_age, label_gender = label
-                label_age = torch.stack(label_age, dim=1).to(self.device)
+                # label_age = torch.stack(label_age, dim=1).to(self.device)
+                label_age = torch.LongTensor(label_age).to(self.device)
                 label_gender = torch.LongTensor(label_gender).to(self.device)
     
                 output = self.model(image)
@@ -172,12 +175,12 @@ class ModelAgeGender:
         val_losses, loss_ages, loss_genders = torch.Tensor([0]), torch.Tensor([0]),torch.Tensor([0])
         val_loss, loss_age, loss_gender = torch.Tensor([0]), torch.Tensor([0]),torch.Tensor([0])
         with torch.no_grad():
-            for inputs, labels in self.val_generator:
+            for image_path, inputs, labels in tqdm(self.val_generator, desc=f"Epoch {self.epoch_count}:"):
                 inputs = inputs.to(self.device)
                 label_age, label_gender = labels
-                # label_age = torch.LongTensor(label_age).to(self.device)
-                label_age = torch.stack(label_age, dim=1).to(self.device)
-                label_gender = label_gender.to(self.device)
+                label_age = torch.LongTensor(label_age).to(self.device)
+                # label_age = torch.stack(label_age, dim=1).to(self.device)
+                label_gender = torch.LongTensor(label_gender).to(self.device)
 
                 # Predict
                 output = self.model(inputs)
@@ -185,12 +188,13 @@ class ModelAgeGender:
                 if self.age_classifier and self.gender_classifier:
                     score_age, prob_age, pred_gender = output
                     # loss_age = cost_fn.cost_nll(prob_age, label_age) 
-                    loss_age = cost_fn.cost_ordinary(score_age, label_age)
+                    loss_age = cost_fn.cost_ordinary(score_age, label_age)/10
                     loss_gender = cost_fn.cost_nll(pred_gender, label_gender)       
                     val_loss = loss_age + loss_gender
 
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, prob_age = output 
+                    import ipdb; ipdb.set_trace()
                     # loss_age = cost_fn.cost_nll(prob_age, label_age)
                     loss_age = cost_fn.cost_ordinary(score_age, label_age)
                     val_loss = loss_age

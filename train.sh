@@ -5,6 +5,6 @@ python3 train.py \
     --num_epochs=50 \
     --batch_size=128 \
     --init_lr=0.002 \
-    --num_workers=8 \
-    --logs="./logs/log_" \
+    --num_workers=2 \
+    --logs="./log" \
     --num_age_classes=81 \

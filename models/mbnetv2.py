@@ -162,6 +162,7 @@ class MobileNetV2(nn.Module):
 
         # building classifier for age and gender
         self.age_cls = False
+        self.gender_cls = False
         if num_age_classes is not None:
             self.num_age_classes = num_age_classes
             self.age_cls = True

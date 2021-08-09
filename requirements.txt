@@ -8,4 +8,4 @@ imgaug
 imutils
 tensorboardX 
 clearml 
-
+pandas
