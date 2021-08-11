@@ -22,7 +22,7 @@ from tensorboardX import SummaryWriter
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
-
+saved_statedict_path = ""
 
 class ModelAgeGender:
     def __init__(self, device="cuda", log="./log", **kwargs):
@@ -66,6 +66,9 @@ class ModelAgeGender:
         else:
             raise ValueError("Do not support model {}!".format(model_name))
         print(f"You are using model {model_name}")
+        
+            
+            
         # Status of age and gender classifiers
         self.age_classifier = self.model.age_cls
         self.gender_classifier = self.model.gender_cls
@@ -87,8 +90,15 @@ class ModelAgeGender:
         self.val_generator = torch.utils.data.DataLoader(val_loader, **params)
 
     
-    def train(self, num_epochs, learning_rate, freeze=False, verbose=True):
+    def train(self, num_epochs, learning_rate, freeze=False, load_statedict=False, verbose=True):
         self._init_param(learning_rate)
+        
+        # Load saved statedict if colab was corrupted 
+        if load_statedict:
+            checkpoint = torch.load(saved_statedict_path)
+            self.model.load_state_dict(checkpoint["model"])
+            self.optimizer.load_state_dict(checkpoint["optimizer"])
+
         # Freeze backbone
         if freeze:
             # Freeze all layers
@@ -302,7 +312,10 @@ class ModelAgeGender:
     def save_statedict(self, mae=0, acc=0):
         self.model.eval()
         model_path = os.path.join(self.log, "{}_{}_gender_{}_age.pt".format(self.epoch_count, acc, mae))
-        torch.save(self.model.state_dict(), model_path)
+        torch.save({
+            "model": self.model.state_dict(), 
+            "optimizer": self.optimizer.state_dict()
+        }, model_path)
 
     
     def load_statedict(self, state_dict_path, device="cpu"):
