@@ -203,7 +203,7 @@ class MobileNetV2(nn.Module):
         if self.age_cls:
             age_score = self.classifier_age(x)
             age_score = age_score.view(-1, (self.num_age_classes-1), 2)
-            age_prob = F.softmax(age_score, dim=2)[:, :, 1]
+            age_prob = F.softmax(age_score, dim=2)
         # Gender classifier
         if self.gender_cls:
             gender = self.classifier_gender(x)

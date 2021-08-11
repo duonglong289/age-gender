@@ -5,6 +5,7 @@ from PIL import Image
 import os 
 from .mbnetv2 import mobilenet_v2
 from .mbnetv1 import mobilenet_v1
+from .resnet import resnet50, resnet34, resnet18
 import logging
 from datetime import datetime
 from tqdm import tqdm
@@ -56,8 +57,15 @@ class ModelAgeGender:
             self.model = mobilenet_v2(pretrained=pretrained, **kwargs)
         elif model_name == "mobilenet_v1":
             self.model = mobilenet_v1(**kwargs)
+        elif model_name == "resnet50":
+            self.model = resnet50(pretrained=pretrained, **kwargs)
+        elif model_name == "resnet34":
+            self.model = resnet34(pretrained=pretrained, **kwargs)
+        elif model_name == "resnet50":
+            self.model = resnet18(pretrained=pretrained, **kwargs)
         else:
             raise ValueError("Do not support model {}!".format(model_name))
+        print(f"You are using model {model_name}")
         # Status of age and gender classifiers
         self.age_classifier = self.model.age_cls
         self.gender_classifier = self.model.gender_cls
@@ -194,7 +202,6 @@ class ModelAgeGender:
 
                 elif self.age_classifier and not self.gender_classifier:
                     score_age, prob_age = output 
-                    import ipdb; ipdb.set_trace()
                     # loss_age = cost_fn.cost_nll(prob_age, label_age)
                     loss_age = cost_fn.cost_ordinary(score_age, label_age)
                     val_loss = loss_age

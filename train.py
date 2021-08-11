@@ -32,6 +32,9 @@ def train(args):
     init_lr = args.init_lr
     num_age_classes = args.num_age_classes
 
+    # Log to clearml or not 
+
+
     # Init dataset
     dataset_dir = args.dataset
     train_loader = DatasetLoader(dataset_dir, "train", num_age_classes=num_age_classes)
@@ -40,7 +43,11 @@ def train(args):
 
     # Init model
     age_gender_model = ModelAgeGender(log=log_dir)
-    age_gender_model.init_model(model_name=model_name, widen_factor=widen_factor, num_age_classes=num_age_classes, num_gender_classes=None)
+    age_gender_model.init_model(
+        model_name=model_name, 
+        num_age_classes=num_age_classes, 
+        num_gender_classes=None,
+    )
 
     age_gender_model.load_dataset((train_loader, val_loader), batch_size=batch_size, num_workers=num_workers)
 
@@ -51,6 +58,9 @@ def train(args):
 
     age_gender_model.save_model(model_name="last.pt")
     age_gender_model.writer.close()
+
+
+
 
 
 if __name__ == "__main__":
@@ -66,10 +76,9 @@ if __name__ == "__main__":
     parser.add_argument("--num_age_classes", type=int, default=100, help="Number of age classes")
     parser.add_argument("--pretrained", type=str, default=None, help="Pretrained model path")
     parser.add_argument("--num_workers", type=int, default=8, help="Number of worker process data")
+    parser.add_argument("--clearml", type=bool, default=False, help="Log model result on ClearML or not")
     args = parser.parse_args()
 
-    task = Task.init(project_name='age-gender', task_name="genos's ordinal code check", reuse_last_task_id=False)
-
-
-
+    task = Task.init(project_name='age-gender', task_name="ordinal regression", reuse_last_task_id=False)
+    
     train(args)
